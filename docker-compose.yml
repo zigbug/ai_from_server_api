@@ -1,0 +1,25 @@
+services:
+  ai-server:
+    build:
+      context: .
+      args:
+        VERSION: ${TAG:-local}
+    image: ai-server:${TAG:-local}
+    container_name: ai-server
+    restart: unless-stopped
+    environment:
+      PORT: "8080"
+      DB_PATH: /data/ai_server.db
+      HF_TOKEN: ${HF_TOKEN}
+      OPENROUTER_API_KEY: ${OPENROUTER_API_KEY}
+      CONTEXT_WINDOW: ${CONTEXT_WINDOW:-20}
+      SUMMARY_THRESHOLD: ${SUMMARY_THRESHOLD:-40}
+      IMAGE_MODEL: ${IMAGE_MODEL:-stabilityai/stable-diffusion-xl-base-1.0}
+      IMAGE_EDIT_MODEL: ${IMAGE_EDIT_MODEL:-black-forest-labs/FLUX.1-Kontext-dev}
+    ports:
+      - "8080:8080"
+    volumes:
+      - ai-server-data:/data
+
+volumes:
+  ai-server-data:

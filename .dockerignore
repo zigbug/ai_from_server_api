@@ -1,0 +1,8 @@
+.dart_tool/
+output/
+data/
+*.db
+*.db-journal
+test-report.html
+.packages
+build/

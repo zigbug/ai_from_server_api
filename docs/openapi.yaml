@@ -1,0 +1,512 @@
+openapi: 3.0.3
+info:
+  title: AI Server API
+  description: |
+    Backend на Dart (shelf) для Flutter-приложений. Работает с бесплатными
+    нейросетями: принимает промт и возвращает текстовый ответ, сгенерированную
+    или отредактированную картинку.
+
+    - **Текстовые модели** — OpenRouter (free tier) и Hugging Face.
+    - **Генерация картинок** — text-to-image через Hugging Face.
+    - **Редактирование картинок** — image-to-image через Hugging Face.
+    - **Сессии** — история диалога хранится на сервере (SQLite), клиент
+      передаёт только `session_id` и новое сообщение.
+  version: 1.0.0
+  contact:
+    name: aiapi.905911.ru
+servers:
+  - url: http://aiapi.905911.ru:8080
+    description: Production
+  - url: http://localhost:8080
+    description: Local development
+tags:
+  - name: Health
+    description: Проверка состояния сервера
+  - name: Models
+    description: Список доступных моделей
+  - name: Sessions
+    description: Сессии диалогов (CRUD + история)
+  - name: Images
+    description: Генерация и редактирование изображений
+
+paths:
+  /:
+    get:
+      tags: [Health]
+      summary: Базовая информация о сервисе
+      operationId: getApiInfo
+      responses:
+        '200':
+          description: Информация о сервисе
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  name:
+                    type: string
+                    example: AI Server API
+                  version:
+                    type: string
+                    example: v1.0.1
+                  endpoints:
+                    type: array
+                    items:
+                      type: string
+
+  /health:
+    get:
+      tags: [Health]
+      summary: Проверка здоровья и версия
+      operationId: getHealth
+      responses:
+        '200':
+          description: Сервер работает
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [status]
+                properties:
+                  status:
+                    type: string
+                    enum: [ok]
+                    example: ok
+                  version:
+                    type: string
+                    example: v1.0.1
+                  time:
+                    type: string
+                    format: date-time
+                  sessions:
+                    type: integer
+                    description: Количество активных сессий
+                    example: 3
+
+  /models:
+    get:
+      tags: [Models]
+      summary: Список доступных моделей
+      description: |
+        Три категории:
+        - `text` — модели для чата (промт → текст);
+        - `image` — генерация картинок с нуля (text-to-image);
+        - `edit` — редактирование загруженной картинки (image-to-image).
+        Используется для меню настроек в Flutter-приложении.
+      operationId: listModels
+      responses:
+        '200':
+          description: Списки моделей
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [text, image, edit]
+                properties:
+                  text:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/ModelInfo'
+                  image:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/ModelInfo'
+                  edit:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/ModelInfo'
+
+  /sessions:
+    post:
+      tags: [Sessions]
+      summary: Создать новую сессию диалога
+      description: >
+        Сессия хранит имя, модель и системный промт (для ролей/игр).
+        История сообщений ведётся на сервере автоматически.
+      operationId: createSession
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateSessionRequest'
+      responses:
+        '201':
+          description: Сессия создана
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Session'
+        '400':
+          $ref: '#/components/responses/ErrorResponse'
+    get:
+      tags: [Sessions]
+      summary: Список всех сессий
+      operationId: listSessions
+      responses:
+        '200':
+          description: Список сессий (без истории)
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [sessions]
+                properties:
+                  sessions:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/Session'
+
+  /sessions/{id}:
+    parameters:
+      - $ref: '#/components/parameters/SessionId'
+    get:
+      tags: [Sessions]
+      summary: Получить сессию по ID
+      operationId: getSession
+      responses:
+        '200':
+          description: Данные сессии
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Session'
+        '404':
+          $ref: '#/components/responses/SessionNotFound'
+    patch:
+      tags: [Sessions]
+      summary: Обновить сессию (имя, модель, системный промт)
+      operationId: updateSession
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UpdateSessionRequest'
+      responses:
+        '200':
+          description: Обновлённая сессия
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Session'
+        '400':
+          $ref: '#/components/responses/ErrorResponse'
+    delete:
+      tags: [Sessions]
+      summary: Удалить сессию и её историю
+      operationId: deleteSession
+      responses:
+        '200':
+          description: Сессия удалена
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [deleted]
+                properties:
+                  deleted:
+                    type: boolean
+                    example: true
+        '404':
+          $ref: '#/components/responses/SessionNotFound'
+
+  /sessions/{id}/history:
+    parameters:
+      - $ref: '#/components/parameters/SessionId'
+    get:
+      tags: [Sessions]
+      summary: История сообщений сессии + текущее резюме
+      operationId: getSessionHistory
+      responses:
+        '200':
+          description: История сообщений в хронологическом порядке
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [session_id, summary, messages]
+                properties:
+                  session_id:
+                    type: string
+                  summary:
+                    type: string
+                    description: Резюме старой части диалога (может быть пустым)
+                  messages:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/Message'
+        '404':
+          $ref: '#/components/responses/SessionNotFound'
+
+  /sessions/{id}/messages:
+    parameters:
+      - $ref: '#/components/parameters/SessionId'
+    post:
+      tags: [Sessions]
+      summary: Отправить сообщение в сессию и получить ответ модели
+      description: >
+        Клиент передаёт только текст сообщения. Контекст/история хранятся на
+        сервере (скользящее окно + авто-резюме), поэтому добавлять историю к
+        запросу не нужно.
+      operationId: sendMessage
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/SendMessageRequest'
+      responses:
+        '200':
+          description: Ответ модели
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [response]
+                properties:
+                  response:
+                    type: string
+                    description: Ответ ассистента (сырой текст)
+        '400':
+          $ref: '#/components/responses/ErrorResponse'
+        '404':
+          $ref: '#/components/responses/SessionNotFound'
+
+  /images:
+    post:
+      tags: [Images]
+      summary: Сгенерировать изображение по промту (text-to-image)
+      operationId: generateImage
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/GenerateImageRequest'
+      responses:
+        '200':
+          description: Изображение в base64
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ImageResult'
+        '400':
+          $ref: '#/components/responses/ErrorResponse'
+
+  /images/edit:
+    post:
+      tags: [Images]
+      summary: Отредактировать загруженную картинку (image-to-image)
+      description: >
+        Приложение отправляет исходную картинку в base64 и инструкцию-промт.
+        Сервер возвращает изменённую картинку в base64.
+      operationId: editImage
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/EditImageRequest'
+      responses:
+        '200':
+          description: Изменённое изображение в base64
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ImageResult'
+        '400':
+          $ref: '#/components/responses/ErrorResponse'
+
+components:
+  parameters:
+    SessionId:
+      name: id
+      in: path
+      required: true
+      description: UUID сессии
+      schema:
+        type: string
+        format: uuid
+      example: 123e4567-e89b-12d3-a456-426614174000
+
+  responses:
+    ErrorResponse:
+      description: Ошибка запроса
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+    SessionNotFound:
+      description: Сессия не найдена
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+
+  schemas:
+    ModelInfo:
+      type: object
+      required: [id, name, kind, provider]
+      properties:
+        id:
+          type: string
+          description: ID модели (используется в запросах)
+          example: meta-llama/llama-3.3-70b-instruct
+        name:
+          type: string
+          description: Человекочитаемое название для меню
+          example: Llama 3.3 70B Instruct
+        kind:
+          type: string
+          enum: [text, image, edit]
+        provider:
+          type: string
+          enum: [openrouter, huggingface]
+          example: openrouter
+
+    CreateSessionRequest:
+      type: object
+      required: [model]
+      properties:
+        name:
+          type: string
+          description: Название сессии
+          default: New session
+          example: Игра 'Мастер подземелий'
+        model:
+          type: string
+          description: ID текстовой модели из /models
+          example: meta-llama/llama-3.3-70b-instruct
+        system_prompt:
+          type: string
+          description: Системный промт (роль/правила игры)
+          example: Ты — мастер подземелий...
+
+    UpdateSessionRequest:
+      type: object
+      properties:
+        name:
+          type: string
+          example: Переименованная сессия
+        model:
+          type: string
+          example: deepseek/deepseek-chat-v3-0324
+        system_prompt:
+          type: string
+          example: Новые правила
+
+    Session:
+      type: object
+      required: [id, name, model, system_prompt]
+      properties:
+        id:
+          type: string
+          format: uuid
+        name:
+          type: string
+        model:
+          type: string
+        system_prompt:
+          type: string
+        created_at:
+          type: string
+          format: date-time
+        updated_at:
+          type: string
+          format: date-time
+
+    Message:
+      type: object
+      required: [role, content]
+      properties:
+        role:
+          type: string
+          enum: [system, user, assistant]
+        content:
+          type: string
+        created_at:
+          type: string
+          format: date-time
+
+    SendMessageRequest:
+      type: object
+      required: [message]
+      properties:
+        message:
+          type: string
+          description: Текст сообщения пользователя
+          example: Привет! Расскажи анекдот
+
+    GenerateImageRequest:
+      type: object
+      required: [prompt]
+      properties:
+        prompt:
+          type: string
+          example: кот в скафандре
+        model:
+          type: string
+          description: ID image-модели из /models. По умолчанию из IMAGE_MODEL.
+          example: black-forest-labs/FLUX.1-schnell
+
+    EditImageRequest:
+      type: object
+      required: [prompt, image]
+      properties:
+        prompt:
+          type: string
+          description: Инструкция, что сделать с картинкой
+          example: сделай это фото в стиле киберпанк
+        image:
+          type: string
+          description: Исходная картинка в base64
+        model:
+          type: string
+          description: ID edit-модели из /models. По умолчанию из IMAGE_EDIT_MODEL.
+          example: black-forest-labs/FLUX.1-Kontext-dev
+        negative_prompt:
+          type: string
+          description: Что НЕ включать в результат
+          example: размытость, шум
+        guidance_scale:
+          type: number
+          format: float
+          description: Следование промту (выше = точнее к промту, ниже качество)
+          example: 7.5
+        num_inference_steps:
+          type: integer
+          description: Шагов денойзинга (больше = качественнее, но медленнее)
+          example: 30
+        width:
+          type: integer
+          description: Ширина выходного изображения
+          example: 512
+        height:
+          type: integer
+          description: Высота выходного изображения
+          example: 512
+
+    ImageResult:
+      type: object
+      required: [image, mime_type]
+      properties:
+        image:
+          type: string
+          format: byte
+          description: Изображение в base64
+        mime_type:
+          type: string
+          example: image/png
+        prompt:
+          type: string
+        model:
+          type: string
+
+    Error:
+      type: object
+      required: [error]
+      properties:
+        error:
+          type: string
+          example: Session not found
