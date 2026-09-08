@@ -4,6 +4,13 @@ on:
   push:
     tags:
       - 'v*'
+  workflow_dispatch:
+    inputs:
+      version:
+        description: 'Версия тега (например v1.0.1). По умолчанию — имя тега или last'
+        required: false
+        default: 'last'
+        type: string
 
 jobs:
   deploy:
@@ -22,7 +29,19 @@ jobs:
           script: |
             set -e
             cd ${{ secrets.APP_DIR }}
-            export TAG=${{ github.ref_name }}
+
+            # Определяем версию: из ручного запуска или из имени тега.
+            if [ "${{ inputs.version }}" != "last" ] && [ -n "${{ inputs.version }}" ]; then
+              DEPLOY_TAG=${{ inputs.version }}
+            else
+              DEPLOY_TAG=${{ github.ref_name }}
+            fi
+
+            # Обновляем код на сервере до нужной версии.
+            git fetch --all --tags
+            git checkout "$DEPLOY_TAG" || git checkout origin/main
+
+            export TAG="$DEPLOY_TAG"
             docker compose build --build-arg VERSION=$TAG
             docker compose up -d
             docker image prune -f
