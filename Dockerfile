@@ -20,7 +20,9 @@ FROM debian:stable-slim
 # sqlite3 работает через FFI и требует системную библиотеку libsqlite3.
 RUN apt-get update \
     && apt-get install -y --no-install-recommends libsqlite3-0 ca-certificates \
+    && ln -s /usr/lib/x86_64-linux-gnu/libsqlite3.so.0 /usr/lib/x86_64-linux-gnu/libsqlite3.so \
     && rm -rf /var/lib/apt/lists/*
+
 
 COPY --from=build /app/output/bundle/ /app/
 
