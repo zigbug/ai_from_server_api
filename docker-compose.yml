@@ -17,7 +17,7 @@ services:
       IMAGE_MODEL: ${IMAGE_MODEL:-stabilityai/stable-diffusion-xl-base-1.0}
       IMAGE_EDIT_MODEL: ${IMAGE_EDIT_MODEL:-black-forest-labs/FLUX.1-Kontext-dev}
     ports:
-      - "8080:8080"
+      - "127.0.0.1:8083:8080"
     volumes:
       - ai-server-data:/data
 
