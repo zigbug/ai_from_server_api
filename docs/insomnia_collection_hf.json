@@ -1,26 +1,26 @@
 {
   "_type": "export",
   "__export_format": 4,
-  "__export_date": "2026-09-08T00:00:00.000Z",
+  "__export_date": "2026-09-09T00:00:00.000Z",
   "__export_source": "opencode:ai_from_server_api",
   "resources": [
     {
-      "_id": "wrk_ai_server",
+      "_id": "wrk_ai_server_hf",
       "_type": "workspace",
       "parentId": null,
-      "name": "AI Server API",
-      "description": "Backend на Dart для Flutter. Текстовые чаты, генерация и редактирование картинок. См. docs/openapi.yaml.",
+      "name": "AI Server API — HF",
+      "description": "Коллекция для работы целиком через Hugging Face без OpenRouter. Текстовые модели подставляются из динамического списка HF (см. GET /models). См. docs/openapi.yaml.",
       "scope": "collection"
     },
     {
       "_id": "__BASE_ENVIRONMENT_ID__",
       "_type": "environment",
-      "parentId": "wrk_ai_server",
+      "parentId": "wrk_ai_server_hf",
       "name": "Base Environment",
       "data": {
         "baseUrl": "https://aiapi.905911.ru:8445",
         "sessionId": "",
-        "modelText": "meta-llama/llama-3.3-70b-instruct",
+        "modelText": "Qwen/Qwen2.5-7B-Instruct",
         "modelImage": "black-forest-labs/FLUX.1-schnell",
         "modelEdit": "black-forest-labs/FLUX.1-Kontext-dev"
       },
@@ -35,44 +35,44 @@
       }
     },
     {
-      "_id": "jar_ai_cookies",
+      "_id": "jar_ai_cookies_hf",
       "_type": "cookie_jar",
-      "parentId": "wrk_ai_server",
+      "parentId": "wrk_ai_server_hf",
       "name": "Default Jar",
       "cookies": []
     },
     {
-      "_id": "fld_health",
+      "_id": "fld_health_hf",
       "_type": "request_group",
-      "parentId": "wrk_ai_server",
+      "parentId": "wrk_ai_server_hf",
       "name": "Health",
       "description": "Состояние сервера"
     },
     {
-      "_id": "fld_models",
+      "_id": "fld_models_hf",
       "_type": "request_group",
-      "parentId": "wrk_ai_server",
+      "parentId": "wrk_ai_server_hf",
       "name": "Models",
       "description": "Список доступных моделей"
     },
     {
-      "_id": "fld_sessions",
+      "_id": "fld_sessions_hf",
       "_type": "request_group",
-      "parentId": "wrk_ai_server",
+      "parentId": "wrk_ai_server_hf",
       "name": "Sessions",
       "description": "Сессии диалогов: создание, листинг, история, сообщения. Инструкция:\n1) Создайте сессию (POST /sessions) и скопируйте session_id.\n2) Вставьте его в переменную окружения sessionId (Environment).\n3) Остальные запросы сессии заработают."
     },
     {
-      "_id": "fld_images",
+      "_id": "fld_images_hf",
       "_type": "request_group",
-      "parentId": "wrk_ai_server",
+      "parentId": "wrk_ai_server_hf",
       "name": "Images",
       "description": "Генерация и редактирование изображений"
     },
     {
-      "_id": "req_get_info",
+      "_id": "req_get_info_hf",
       "_type": "request",
-      "parentId": "fld_health",
+      "parentId": "fld_health_hf",
       "name": "GET / (info)",
       "method": "GET",
       "url": "{{ baseUrl }}/",
@@ -93,9 +93,9 @@
       "settingFollowRedirects": "global"
     },
     {
-      "_id": "req_health",
+      "_id": "req_health_hf",
       "_type": "request",
-      "parentId": "fld_health",
+      "parentId": "fld_health_hf",
       "name": "GET /health",
       "method": "GET",
       "url": "{{ baseUrl }}/health",
@@ -116,9 +116,9 @@
       "settingFollowRedirects": "global"
     },
     {
-      "_id": "req_models",
+      "_id": "req_models_hf",
       "_type": "request",
-      "parentId": "fld_models",
+      "parentId": "fld_models_hf",
       "name": "GET /models (список моделей)",
       "method": "GET",
       "url": "{{ baseUrl }}/models",
@@ -139,9 +139,9 @@
       "settingFollowRedirects": "global"
     },
     {
-      "_id": "req_create_session",
+      "_id": "req_create_session_hf",
       "_type": "request",
-      "parentId": "fld_sessions",
+      "parentId": "fld_sessions_hf",
       "name": "POST /sessions (создать)",
       "method": "POST",
       "url": "{{ baseUrl }}/sessions",
@@ -168,9 +168,9 @@
       "settingFollowRedirects": "global"
     },
     {
-      "_id": "req_list_sessions",
+      "_id": "req_list_sessions_hf",
       "_type": "request",
-      "parentId": "fld_sessions",
+      "parentId": "fld_sessions_hf",
       "name": "GET /sessions (список)",
       "method": "GET",
       "url": "{{ baseUrl }}/sessions",
@@ -191,9 +191,9 @@
       "settingFollowRedirects": "global"
     },
     {
-      "_id": "req_get_session",
+      "_id": "req_get_session_hf",
       "_type": "request",
-      "parentId": "fld_sessions",
+      "parentId": "fld_sessions_hf",
       "name": "GET /sessions/{id} (по ID)",
       "method": "GET",
       "url": "{{ baseUrl }}/sessions/{{ sessionId }}",
@@ -214,9 +214,9 @@
       "settingFollowRedirects": "global"
     },
     {
-      "_id": "req_update_session",
+      "_id": "req_update_session_hf",
       "_type": "request",
-      "parentId": "fld_sessions",
+      "parentId": "fld_sessions_hf",
       "name": "PATCH /sessions/{id} (обновить)",
       "method": "PATCH",
       "url": "{{ baseUrl }}/sessions/{{ sessionId }}",
@@ -242,9 +242,9 @@
       "settingFollowRedirects": "global"
     },
     {
-      "_id": "req_delete_session",
+      "_id": "req_delete_session_hf",
       "_type": "request",
-      "parentId": "fld_sessions",
+      "parentId": "fld_sessions_hf",
       "name": "DELETE /sessions/{id} (удалить)",
       "method": "DELETE",
       "url": "{{ baseUrl }}/sessions/{{ sessionId }}",
@@ -265,9 +265,9 @@
       "settingFollowRedirects": "global"
     },
     {
-      "_id": "req_history",
+      "_id": "req_history_hf",
       "_type": "request",
-      "parentId": "fld_sessions",
+      "parentId": "fld_sessions_hf",
       "name": "GET /sessions/{id}/history",
       "method": "GET",
       "url": "{{ baseUrl }}/sessions/{{ sessionId }}/history",
@@ -288,9 +288,9 @@
       "settingFollowRedirects": "global"
     },
     {
-      "_id": "req_send_message",
+      "_id": "req_send_message_hf",
       "_type": "request",
-      "parentId": "fld_sessions",
+      "parentId": "fld_sessions_hf",
       "name": "POST /sessions/{id}/messages (отправить сообщение)",
       "method": "POST",
       "url": "{{ baseUrl }}/sessions/{{ sessionId }}/messages",
@@ -316,9 +316,9 @@
       "settingFollowRedirects": "global"
     },
     {
-      "_id": "req_gen_image",
+      "_id": "req_gen_image_hf",
       "_type": "request",
-      "parentId": "fld_images",
+      "parentId": "fld_images_hf",
       "name": "POST /images (сгенерировать)",
       "method": "POST",
       "url": "{{ baseUrl }}/images",
@@ -344,9 +344,9 @@
       "settingFollowRedirects": "global"
     },
     {
-      "_id": "req_edit_image",
+      "_id": "req_edit_image_hf",
       "_type": "request",
-      "parentId": "fld_images",
+      "parentId": "fld_images_hf",
       "name": "POST /images/edit (отредактировать)",
       "method": "POST",
       "url": "{{ baseUrl }}/images/edit",

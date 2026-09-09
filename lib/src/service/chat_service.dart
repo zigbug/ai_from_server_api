@@ -2,6 +2,7 @@ import 'dart:typed_data';
 
 import '../config/config.dart';
 import '../models.dart';
+import '../models/model_catalog.dart';
 import '../providers/huggingface_provider.dart';
 import '../providers/provider.dart';
 import '../store/session_store.dart';
@@ -13,12 +14,14 @@ class ChatService {
     required this.config,
     required this.openRouter,
     required this.huggingFace,
+    required this.catalog,
   });
 
   final SessionStore store;
   final Config config;
   final LLMProvider openRouter;
   final HuggingFaceProvider huggingFace;
+  final ModelCatalog catalog;
 
   /// Создать сессию.
   Session createSession({
@@ -66,7 +69,7 @@ class ChatService {
     final summary = store.getSummary(sessionId);
 
     // Выбираем провайдера по модели.
-    final modelInfo = findModelById(session.model) ??
+    final modelInfo = await findTextModel(session.model) ??
         ModelInfo(
           id: session.model,
           name: session.model,
@@ -124,7 +127,7 @@ class ChatService {
     }
     toSummarize.addAll(old);
 
-    final provider = _providerForModel(model);
+    final provider = await _providerForModel(model);
     final newSummary = await provider.summarize(
       messages: toSummarize,
       model: model,
@@ -146,8 +149,8 @@ class ChatService {
     return parts.isEmpty ? '' : parts.join('\n\n');
   }
 
-  LLMProvider _providerForModel(String modelId) {
-    final info = findModelById(modelId);
+  Future<LLMProvider> _providerForModel(String modelId) async {
+    final info = await findTextModel(modelId);
     if (info != null && info.provider == 'huggingface') {
       return huggingFace;
     }
@@ -196,6 +199,41 @@ class ChatService {
   /// Список моделей по типу.
   List<ModelInfo> modelsOfKind(ModelKind kind) {
     return availableModels.where((m) => m.kind == kind).toList();
+  }
+
+  /// Объединённый список текстовых моделей: статические (OpenRouter) +
+  /// динамические HF-модели. Для одинаковых ID провайдер — huggingface.
+  Future<List<ModelInfo>> textModels() async {
+    final hf = await catalog.textModels();
+    final byId = <String, ModelInfo>{
+      for (final m in availableModels.where((m) => m.kind == ModelKind.text))
+        m.id: m,
+    };
+    for (final m in hf) {
+      final existing = byId[m.id];
+      if (existing != null) {
+        byId[m.id] = ModelInfo(
+          id: existing.id,
+          name: existing.name,
+          kind: existing.kind,
+          provider: 'huggingface',
+        );
+      } else {
+        byId[m.id] = m;
+      }
+    }
+    return byId.values.toList();
+  }
+
+  /// Найти текстовую модель: сначала динамический HF-каталог, потом статика.
+  Future<ModelInfo?> findTextModel(String id) async {
+    return catalog.findTextModel(id);
+  }
+
+  /// ID текстовой модели по умолчанию (первая из списка).
+  Future<String> defaultTextModelId() async {
+    final models = await textModels();
+    return models.first.id;
   }
 
   void _validateTextModel(String model) {

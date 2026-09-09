@@ -13,7 +13,7 @@ Router buildRouter(ChatService service) {
   final router = Router()
     ..get('/', (req) => _rootHandler(req, service))
     ..get('/health', (req) => _healthHandler(req, service))
-    ..get('/models', (req) => _modelsHandler(req))
+    ..get('/models', (req) => _modelsHandler(req, service))
     ..post('/images', (req) => _imagesHandler(req, service))
     ..post('/images/edit', (req) => _imagesEditHandler(req, service))
     ..post('/sessions', (req) => _createSession(req, service))
@@ -47,10 +47,9 @@ Response _healthHandler(Request req, ChatService service) {
   });
 }
 
-Response _modelsHandler(Request req) {
+Future<Response> _modelsHandler(Request req, ChatService service) async {
   return jsonResponse({
-    'text': availableModels
-        .where((m) => m.kind == ModelKind.text)
+    'text': (await service.textModels())
         .map((m) => m.toJson())
         .toList(),
     'image': availableModels
@@ -128,7 +127,7 @@ Future<Response> _createSession(Request req, ChatService service) async {
   try {
     final body = await _readBody(req);
     final name = (body['name'] as String? ?? 'New session').trim();
-    final model = (body['model'] as String? ?? availableModels.firstWhere((m) => m.kind == ModelKind.text).id);
+    final model = (body['model'] as String? ?? await service.defaultTextModelId()).trim();
     final systemPrompt = (body['system_prompt'] as String? ?? '').trim();
     final session = service.createSession(
       name: name,

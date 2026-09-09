@@ -1,0 +1,245 @@
+{
+  "info": {
+    "_postman_id": "ai-server-api-collection",
+    "name": "AI Server API",
+    "description": "Backend на Dart для Flutter. Текстовые чаты, генерация и редактирование картинок. См. docs/openapi.yaml.",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "item": [
+    {
+      "name": "Health",
+      "description": "Состояние сервера",
+      "item": [
+        {
+          "name": "GET / (info)",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/",
+              "host": ["{{baseUrl}}"],
+              "path": [""]
+            }
+          }
+        },
+        {
+          "name": "GET /health",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/health",
+              "host": ["{{baseUrl}}"],
+              "path": ["health"]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "Models",
+      "description": "Список доступных моделей",
+      "item": [
+        {
+          "name": "GET /models (список моделей)",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/models",
+              "host": ["{{baseUrl}}"],
+              "path": ["models"]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "Sessions",
+      "description": "Сессии диалогов: создание, листинг, история, сообщения.\n\nИнструкция:\n1) Создайте сессию (POST /sessions) и скопируйте session_id.\n2) Вставьте его в переменную окружения sessionId.\n3) Остальные запросы сессии заработают.",
+      "item": [
+        {
+          "name": "POST /sessions (создать)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "try {",
+                  "  const text = pm.response.text();",
+                  "  if (!text) throw new Error('empty');",
+                  "  const jsonData = JSON.parse(text);",
+                  "  if (jsonData && jsonData.session_id) {",
+                  "    pm.environment.set('sessionId', jsonData.session_id);",
+                  "    console.log('sessionId set to:', jsonData.session_id);",
+                  "  }",
+                  "} catch (e) {",
+                  "  console.log('Response is not JSON, skipping sessionId extraction:', e.message);",
+                  "}"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"Игра 'Мастер подземелий'\",\n  \"model\": \"{{modelText}}\",\n  \"system_prompt\": \"Ты — мастер подземелий. Отвечай кратко и атмосферно.\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/sessions",
+              "host": ["{{baseUrl}}"],
+              "path": ["sessions"]
+            }
+          }
+        },
+        {
+          "name": "GET /sessions (список)",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/sessions",
+              "host": ["{{baseUrl}}"],
+              "path": ["sessions"]
+            }
+          }
+        },
+        {
+          "name": "GET /sessions/{id} (по ID)",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/sessions/{{sessionId}}",
+              "host": ["{{baseUrl}}"],
+              "path": ["sessions", "{{sessionId}}"]
+            }
+          }
+        },
+        {
+          "name": "PATCH /sessions/{id} (обновить)",
+          "request": {
+            "method": "PATCH",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"Переименованная сессия\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/sessions/{{sessionId}}",
+              "host": ["{{baseUrl}}"],
+              "path": ["sessions", "{{sessionId}}"]
+            }
+          }
+        },
+        {
+          "name": "DELETE /sessions/{id} (удалить)",
+          "request": {
+            "method": "DELETE",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/sessions/{{sessionId}}",
+              "host": ["{{baseUrl}}"],
+              "path": ["sessions", "{{sessionId}}"]
+            }
+          }
+        },
+        {
+          "name": "GET /sessions/{id}/history",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/sessions/{{sessionId}}/history",
+              "host": ["{{baseUrl}}"],
+              "path": ["sessions", "{{sessionId}}", "history"]
+            }
+          }
+        },
+        {
+          "name": "POST /sessions/{id}/messages (отправить сообщение)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"message\": \"Привет! Расскажи анекдот\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/sessions/{{sessionId}}/messages",
+              "host": ["{{baseUrl}}"],
+              "path": ["sessions", "{{sessionId}}", "messages"]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "Images",
+      "description": "Генерация и редактирование изображений",
+      "item": [
+        {
+          "name": "POST /images (сгенерировать)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"prompt\": \"кот в скафандре\",\n  \"model\": \"{{modelImage}}\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/images",
+              "host": ["{{baseUrl}}"],
+              "path": ["images"]
+            }
+          }
+        },
+        {
+          "name": "POST /images/edit (отредактировать)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"prompt\": \"сделай это фото в стиле киберпанк\",\n  \"image\": \"<base64 исходной картинки>\",\n  \"model\": \"{{modelEdit}}\",\n  \"negative_prompt\": \"размытость, шум\",\n  \"guidance_scale\": 7.5,\n  \"num_inference_steps\": 30,\n  \"width\": 512,\n  \"height\": 512\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/images/edit",
+              "host": ["{{baseUrl}}"],
+              "path": ["images", "edit"]
+            }
+          }
+        }
+      ]
+    }
+  ],
+  "variable": []
+}

@@ -5,7 +5,9 @@ Backend на Dart (shelf) для Flutter-приложений. Работает 
 
 ## Возможности
 
-- **Текстовые модели** — OpenRouter (free tier) и Hugging Face Inference API
+- **Текстовые модели** — OpenRouter (free tier) и Hugging Face Inference API.
+  Список текстовых HF-моделей подтягивается с Hugging Face Hub автоматически
+  (топ по загрузкам, кэш на час, fallback при недоступности Hub)
 - **Генерация изображений** — Stable Diffusion / FLUX через Hugging Face
 - **Сессии диалогов** — с системным промтом (роли/игры) и историей на SQLite
 - **Умный контекст** — скользящее окно (по умолчанию 20 сообщений) +
@@ -48,9 +50,14 @@ dart run bin/server.dart
   "edit": [{"id": "...", "name": "...", "kind": "edit", "provider": "huggingface"}]
 }
 ```
-- `text` — текстовые модели для чатов,
+- `text` — текстовые модели для чатов: статический список (OpenRouter/HF) +
+  динамические топ-модели с Hugging Face Hub (провайдер `huggingface`);
 - `image` — генерация картинок с нуля (text-to-image),
 - `edit` — редактирование загруженных картинок (image-to-image).
+
+Динамические HF-модели кэшируются на 1 час; при недоступности Hub используется
+статический запасной список (`HuggingFaceH4/zephyr-7b-beta`,
+`mistralai/Mistral-7B-Instruct-v0.3`, `Qwen/Qwen2.5-7B-Instruct`).
 
 Используйте для меню настроек в приложении.
 
@@ -193,3 +200,14 @@ dart test
   Import → Import from File). Настроены переменные окружения: `baseUrl`,
   `sessionId`, модели. После создания сессии вставьте `session_id` в переменную
   `sessionId` в Insomnia, и остальные запросы сессии заработают.
+- `docs/insomnia_collection_hf.json` — то же, но для работы целиком через
+  Hugging Face (без OpenRouter): `modelText` по умолчанию
+  `Qwen/Qwen2.5-7B-Instruct`. Импортировать только после удаления старой
+  коллекции «AI Server API» (иначе Insomnia продублирует Base Environment).
+- `docs/postman_collection.json` / `docs/postman_collection_hf.json` — те же
+  коллекции для Postman (+ окружения
+  `docs/postman_environment_production.json` и
+  `docs/postman_environment_production_hf.json`).
+
+`baseUrl` во всех коллекциях: `https://aiapi.905911.ru:8445` (порт 8445
+принимает только HTTPS).
