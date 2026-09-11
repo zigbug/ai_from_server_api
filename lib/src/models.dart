@@ -49,18 +49,21 @@ class ModelInfo {
     required this.name,
     required this.kind,
     required this.provider,
+    this.free = true,
   });
 
   final String id;
   final String name;
   final ModelKind kind;
   final String provider;
+  final bool free;
 
   Map<String, Object?> toJson() => {
         'id': id,
         'name': name,
         'kind': kind.name,
         'provider': provider,
+        'free': free,
       };
 }
 
@@ -104,39 +107,31 @@ class Session {
       };
 }
 
-/// Список доступных моделей (белый список), которые можно выбрать.
+/// Статический (fallback) список доступных моделей Hugging Face.
+/// Используется как запасной вариант при недоступности HF Hub,
+/// а также для валидации ID моделей.
 final List<ModelInfo> availableModels = [
-  // --- Текстовые модели (OpenRouter free tier) ---
-  ModelInfo(
-    id: 'meta-llama/llama-3.3-70b-instruct',
-    name: 'Llama 3.3 70B Instruct',
-    kind: ModelKind.text,
-    provider: 'openrouter',
-  ),
-  ModelInfo(
-    id: 'deepseek/deepseek-chat-v3-0324',
-    name: 'DeepSeek V3 0324',
-    kind: ModelKind.text,
-    provider: 'openrouter',
-  ),
-  ModelInfo(
-    id: 'qwen/qwen-2.5-72b-instruct',
-    name: 'Qwen 2.5 72B Instruct',
-    kind: ModelKind.text,
-    provider: 'openrouter',
-  ),
-  ModelInfo(
-    id: 'mistralai/mistral-7b-instruct',
-    name: 'Mistral 7B Instruct',
-    kind: ModelKind.text,
-    provider: 'openrouter',
-  ),
   // --- Текстовые модели (Hugging Face) ---
   ModelInfo(
     id: 'HuggingFaceH4/zephyr-7b-beta',
-    name: 'Zephyr 7B Beta (HF)',
+    name: 'Zephyr 7B Beta',
     kind: ModelKind.text,
-    provider: 'openrouter',
+    provider: 'huggingface',
+    free: true,
+  ),
+  ModelInfo(
+    id: 'mistralai/Mistral-7B-Instruct-v0.3',
+    name: 'Mistral 7B Instruct v0.3',
+    kind: ModelKind.text,
+    provider: 'huggingface',
+    free: true,
+  ),
+  ModelInfo(
+    id: 'Qwen/Qwen2.5-7B-Instruct',
+    name: 'Qwen 2.5 7B Instruct',
+    kind: ModelKind.text,
+    provider: 'huggingface',
+    free: true,
   ),
   // --- Картинки (Hugging Face) ---
   ModelInfo(
@@ -144,18 +139,21 @@ final List<ModelInfo> availableModels = [
     name: 'Stable Diffusion XL',
     kind: ModelKind.image,
     provider: 'huggingface',
+    free: true,
   ),
   ModelInfo(
     id: 'black-forest-labs/FLUX.1-schnell',
     name: 'FLUX.1 Schnell',
     kind: ModelKind.image,
     provider: 'huggingface',
+    free: false,
   ),
   ModelInfo(
     id: 'stabilityai/stable-diffusion-3-medium-diffusers',
     name: 'Stable Diffusion 3 Medium',
     kind: ModelKind.image,
     provider: 'huggingface',
+    free: true,
   ),
   // --- Редактирование картинок (image-to-image, Hugging Face) ---
   ModelInfo(
@@ -163,12 +161,14 @@ final List<ModelInfo> availableModels = [
     name: 'FLUX.1 Kontext Dev (edit)',
     kind: ModelKind.edit,
     provider: 'huggingface',
+    free: false,
   ),
   ModelInfo(
     id: 'Qwen/Qwen-Image-Edit',
     name: 'Qwen Image Edit',
     kind: ModelKind.edit,
     provider: 'huggingface',
+    free: true,
   ),
 ];
 

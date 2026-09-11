@@ -11,7 +11,6 @@ services:
       PORT: "8080"
       DB_PATH: /data/ai_server.db
       HF_TOKEN: ${HF_TOKEN}
-      OPENROUTER_API_KEY: ${OPENROUTER_API_KEY}
       CONTEXT_WINDOW: ${CONTEXT_WINDOW:-20}
       SUMMARY_THRESHOLD: ${SUMMARY_THRESHOLD:-40}
       IMAGE_MODEL: ${IMAGE_MODEL:-stabilityai/stable-diffusion-xl-base-1.0}

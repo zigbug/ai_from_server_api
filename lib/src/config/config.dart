@@ -5,7 +5,6 @@ class Config {
   Config({
     required this.port,
     required this.hfToken,
-    required this.openRouterKey,
     required this.dbPath,
     required this.contextWindow,
     required this.summaryThreshold,
@@ -16,7 +15,6 @@ class Config {
 
   final int port;
   final String? hfToken;
-  final String? openRouterKey;
   final String dbPath;
   final int contextWindow;
   final int summaryThreshold;
@@ -34,7 +32,6 @@ class Config {
     return Config(
       port: int.parse(Platform.environment['PORT'] ?? '8080'),
       hfToken: Platform.environment['HF_TOKEN'],
-      openRouterKey: Platform.environment['OPENROUTER_API_KEY'],
       dbPath: Platform.environment['DB_PATH'] ?? 'data/ai_server.db',
       contextWindow: int.parse(
         Platform.environment['CONTEXT_WINDOW'] ?? '$defaultContextWindow',

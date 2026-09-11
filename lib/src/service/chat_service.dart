@@ -8,28 +8,27 @@ import '../providers/provider.dart';
 import '../store/session_store.dart';
 
 /// Сервис, координирующий работу с сессиями, контекстом и провайдерами.
+/// Все запросы идут через Hugging Face Inference API.
 class ChatService {
   ChatService({
     required this.store,
     required this.config,
-    required this.openRouter,
     required this.huggingFace,
     required this.catalog,
   });
 
   final SessionStore store;
   final Config config;
-  final LLMProvider openRouter;
   final HuggingFaceProvider huggingFace;
   final ModelCatalog catalog;
 
-  /// Создать сессию.
-  Session createSession({
+  /// Создать сессию (проверяет, что модель не image/edit).
+  Future<Session> createSession({
     required String name,
     required String model,
     String systemPrompt = '',
-  }) {
-    _validateTextModel(model);
+  }) async {
+    await _validateTextModel(model);
     return store.createSession(
       name: name,
       model: model,
@@ -68,26 +67,9 @@ class ChatService {
     );
     final summary = store.getSummary(sessionId);
 
-    // Выбираем провайдера по модели.
-    final modelInfo = await findTextModel(session.model) ??
-        ModelInfo(
-          id: session.model,
-          name: session.model,
-          kind: ModelKind.text,
-          provider: 'openrouter',
-        );
-
-    final LLMProvider provider;
-    if (modelInfo.provider == 'huggingface') {
-      provider = huggingFace;
-    } else {
-      provider = openRouter;
-    }
-
-    // Формируем системный промт: резюме истории + системный промт сессии.
     final systemPrompt = _buildSystemPrompt(summary, session.systemPrompt);
 
-    final result = await provider.chat(
+    final result = await huggingFace.chat(
       messages: history,
       model: session.model,
       systemPrompt: systemPrompt,
@@ -110,14 +92,12 @@ class ChatService {
       return;
     }
 
-    // Разделяем историю: первые (старые) и последние (новые).
     final (old, _) = store.splitHistory(
       sessionId,
       keepLast: config.contextWindow,
     );
     if (old.isEmpty) return;
 
-    // Резюмируем старую часть.
     final existingSummary = store.getSummary(sessionId);
     final toSummarize = <ChatMessage>[];
     if (existingSummary.isNotEmpty) {
@@ -127,14 +107,12 @@ class ChatService {
     }
     toSummarize.addAll(old);
 
-    final provider = await _providerForModel(model);
-    final newSummary = await provider.summarize(
+    final newSummary = await huggingFace.summarize(
       messages: toSummarize,
       model: model,
     );
     store.setSummary(sessionId, newSummary);
 
-    // Удаляем отсуммированные старые сообщения.
     store.trimHistory(sessionId, keepLast: config.contextWindow);
   }
 
@@ -149,21 +127,13 @@ class ChatService {
     return parts.isEmpty ? '' : parts.join('\n\n');
   }
 
-  Future<LLMProvider> _providerForModel(String modelId) async {
-    final info = await findTextModel(modelId);
-    if (info != null && info.provider == 'huggingface') {
-      return huggingFace;
-    }
-    return openRouter;
-  }
-
   /// Генерация изображения.
   Future<ImageResult> generateImage({
     required String prompt,
     required String model,
-  }) {
-    final info = findModelById(model);
-    if (info == null || info.kind != ModelKind.image) {
+  }) async {
+    final imageModels = await catalog.modelsOfKind(ModelKind.image);
+    if (!imageModels.any((m) => m.id == model)) {
       throw ArgumentError('Not an image model: $model');
     }
     return huggingFace.generateImage(prompt: prompt, model: model);
@@ -179,9 +149,9 @@ class ChatService {
     int? numInferenceSteps,
     int? width,
     int? height,
-  }) {
-    final info = findModelById(model);
-    if (info == null || info.kind != ModelKind.edit) {
+  }) async {
+    final editModels = await catalog.modelsOfKind(ModelKind.edit);
+    if (!editModels.any((m) => m.id == model)) {
       throw ArgumentError('Not an image-edit model: $model');
     }
     return huggingFace.editImage(
@@ -196,36 +166,26 @@ class ChatService {
     );
   }
 
-  /// Список моделей по типу.
-  List<ModelInfo> modelsOfKind(ModelKind kind) {
-    return availableModels.where((m) => m.kind == kind).toList();
+  /// Список моделей для заданной категории.
+  Future<List<ModelInfo>> modelsOfKind(ModelKind kind) async {
+    return catalog.modelsOfKind(kind);
   }
 
-  /// Объединённый список текстовых моделей: статические (OpenRouter) +
-  /// динамические HF-модели. Для одинаковых ID провайдер — huggingface.
+  /// Объединённый список текстовых моделей: статический fallback +
+  /// динамические HF-модели из каталога.
   Future<List<ModelInfo>> textModels() async {
-    final hf = await catalog.textModels();
+    final hf = await catalog.modelsOfKind(ModelKind.text);
     final byId = <String, ModelInfo>{
       for (final m in availableModels.where((m) => m.kind == ModelKind.text))
         m.id: m,
     };
     for (final m in hf) {
-      final existing = byId[m.id];
-      if (existing != null) {
-        byId[m.id] = ModelInfo(
-          id: existing.id,
-          name: existing.name,
-          kind: existing.kind,
-          provider: 'huggingface',
-        );
-      } else {
-        byId[m.id] = m;
-      }
+      byId[m.id] = m;
     }
     return byId.values.toList();
   }
 
-  /// Найти текстовую модель: сначала динамический HF-каталог, потом статика.
+  /// Найти текстовую модель по ID.
   Future<ModelInfo?> findTextModel(String id) async {
     return catalog.findTextModel(id);
   }
@@ -236,9 +196,15 @@ class ChatService {
     return models.first.id;
   }
 
-  void _validateTextModel(String model) {
-    if (findModelById(model)?.kind == ModelKind.image) {
+  /// Проверить, что модель не image/edit (для сессий чата).
+  Future<void> _validateTextModel(String model) async {
+    final imageModels = await catalog.modelsOfKind(ModelKind.image);
+    if (imageModels.any((m) => m.id == model)) {
       throw ArgumentError('Image model cannot be used for text chat: $model');
+    }
+    final editModels = await catalog.modelsOfKind(ModelKind.edit);
+    if (editModels.any((m) => m.id == model)) {
+      throw ArgumentError('Image-edit model cannot be used for text chat: $model');
     }
   }
 }

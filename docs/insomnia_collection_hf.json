@@ -1,7 +1,7 @@
 {
   "_type": "export",
   "__export_format": 4,
-  "__export_date": "2026-09-09T00:00:00.000Z",
+  "__export_date": "2026-09-11T00:00:00.000Z",
   "__export_source": "opencode:ai_from_server_api",
   "resources": [
     {
@@ -9,7 +9,7 @@
       "_type": "workspace",
       "parentId": null,
       "name": "AI Server API — HF",
-      "description": "Коллекция для работы целиком через Hugging Face без OpenRouter. Текстовые модели подставляются из динамического списка HF (см. GET /models). См. docs/openapi.yaml.",
+      "description": "Коллекция для работы целиком через Hugging Face (без OpenRouter). GET /models подтягивает модели напрямую с Hugging Face Hub по категориям text/image/edit с флагом free (бесплатность). См. docs/openapi.yaml.",
       "scope": "collection"
     },
     {
@@ -53,7 +53,7 @@
       "_type": "request_group",
       "parentId": "wrk_ai_server_hf",
       "name": "Models",
-      "description": "Список доступных моделей"
+      "description": "Список доступных моделей с Hugging Face Hub (кэш 1 час). Каждая модель содержит free — бесплатна ли она. ?refresh=1 сбрасывает кэш."
     },
     {
       "_id": "fld_sessions_hf",
@@ -139,6 +139,29 @@
       "settingFollowRedirects": "global"
     },
     {
+      "_id": "req_models_refresh_hf",
+      "_type": "request",
+      "parentId": "fld_models_hf",
+      "name": "GET /models?refresh=1 (обновить кэш)",
+      "method": "GET",
+      "url": "{{ baseUrl }}/models?refresh=1",
+      "parameters": [],
+      "headers": [],
+      "authentication": {},
+      "metaSortKey": "2000",
+      "body": {
+        "mimeType": "",
+        "text": ""
+      },
+      "isPrivate": false,
+      "settingStoreCookies": true,
+      "settingSendCookies": true,
+      "settingDisableRenderRequestBody": false,
+      "settingEncodeUrl": true,
+      "settingRebuildPath": true,
+      "settingFollowRedirects": "global"
+    },
+    {
       "_id": "req_create_session_hf",
       "_type": "request",
       "parentId": "fld_sessions_hf",
@@ -158,7 +181,7 @@
         "mimeType": "application/json",
         "text": "{\n  \"name\": \"Игра 'Мастер подземелий'\",\n  \"model\": \"{{ modelText }}\",\n  \"system_prompt\": \"Ты — мастер подземелий. Отвечай кратко и атмосферно.\"\n}"
       },
-      "afterResponseScript": "try {\n  const text = insomnia.response.text();\n  if (!text) return;\n  const jsonBody = JSON.parse(text);\n  if (jsonBody && jsonBody.session_id) {\n    insomnia.environment.set('sessionId', jsonBody.session_id);\n    console.log('sessionId set to:', jsonBody.session_id);\n  }\n} catch (e) {\n  console.log('Response is not JSON, skipping sessionId extraction:', e.message);\n}",
+      "afterResponseScript": "try {\n  const text = insomnia.response.text();\n  if (!text) return;\n  const jsonBody = JSON.parse(text);\n  const newId = jsonBody.id || jsonBody.session_id;\n  if (newId) {\n    insomnia.environment.set('sessionId', newId);\n    console.log('sessionId set to:', newId);\n  }\n} catch (e) {\n  console.log('Response is not JSON, skipping sessionId extraction:', e.message);\n}",
       "isPrivate": false,
       "settingStoreCookies": true,
       "settingSendCookies": true,

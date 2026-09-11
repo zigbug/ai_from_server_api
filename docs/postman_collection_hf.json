@@ -2,7 +2,7 @@
   "info": {
     "_postman_id": "ai-server-api-collection-hf",
     "name": "AI Server API — HF",
-    "description": "Коллекция для работы целиком через Hugging Face без OpenRouter. Текстовые модели подставляются из динамического списка HF (см. GET /models). См. docs/openapi.yaml.",
+    "description": "Коллекция для работы целиком через Hugging Face без OpenRouter. GET /models подтягивает модели напрямую с Hugging Face Hub по категориям text/image/edit с флагом free (бесплатность). См. docs/openapi.yaml.",
     "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
   },
   "item": [
@@ -38,7 +38,7 @@
     },
     {
       "name": "Models",
-      "description": "Список доступных моделей",
+      "description": "Список доступных моделей с Hugging Face Hub (кэш 1 час). Каждая модель содержит free — бесплатна ли она. ?refresh=1 сбрасывает кэш.",
       "item": [
         {
           "name": "GET /models (список моделей)",
@@ -49,6 +49,24 @@
               "raw": "{{baseUrl}}/models",
               "host": ["{{baseUrl}}"],
               "path": ["models"]
+            }
+          }
+        },
+        {
+          "name": "GET /models?refresh=1 (обновить кэш)",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/models?refresh=1",
+              "host": ["{{baseUrl}}"],
+              "path": ["models"],
+              "query": [
+                {
+                  "key": "refresh",
+                  "value": "1"
+                }
+              ]
             }
           }
         }
@@ -70,9 +88,10 @@
                   "  const text = pm.response.text();",
                   "  if (!text) throw new Error('empty');",
                   "  const jsonData = JSON.parse(text);",
-                  "  if (jsonData && jsonData.session_id) {",
-                  "    pm.environment.set('sessionId', jsonData.session_id);",
-                  "    console.log('sessionId set to:', jsonData.session_id);",
+                  "  const newId = jsonData && (jsonData.id || jsonData.session_id);",
+                  "  if (newId) {",
+                  "    pm.environment.set('sessionId', newId);",
+                  "    console.log('sessionId set to:', newId);",
                   "  }",
                   "} catch (e) {",
                   "  console.log('Response is not JSON, skipping sessionId extraction:', e.message);",

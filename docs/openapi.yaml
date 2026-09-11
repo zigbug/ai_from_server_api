@@ -3,15 +3,17 @@ info:
   title: AI Server API
   description: |
     Backend на Dart (shelf) для Flutter-приложений. Работает с бесплатными
-    нейросетями: принимает промт и возвращает текстовый ответ, сгенерированную
-    или отредактированную картинку.
+    нейросетями через Hugging Face Inference API: принимает промт и возвращает
+    текстовый ответ, сгенерированную или отредактированную картинку.
 
-    - **Текстовые модели** — OpenRouter (free tier) и Hugging Face.
+    - **Текстовые модели** — text-generation через Hugging Face.
     - **Генерация картинок** — text-to-image через Hugging Face.
     - **Редактирование картинок** — image-to-image через Hugging Face.
+    - **Список моделей** — `/models` подтягивает модели напрямую с Hugging Face
+      Hub, сгруппированные по категориям и с флагом `free` (бесплатная).
     - **Сессии** — история диалога хранится на сервере (SQLite), клиент
       передаёт только `session_id` и новое сообщение.
-  version: 1.0.0
+  version: 2.0.0
   contact:
     name: aiapi.905911.ru
 servers:
@@ -88,10 +90,12 @@ paths:
       tags: [Models]
       summary: Список доступных моделей
       description: |
+        Модели подтягиваются напрямую с Hugging Face Hub (кэш 1 час).
         Три категории:
-        - `text` — модели для чата (промт → текст);
+        - `text` — модели для чата (text-generation);
         - `image` — генерация картинок с нуля (text-to-image);
         - `edit` — редактирование загруженной картинки (image-to-image).
+        Каждая модель содержит `free` — бесплатна ли она (не gated на HF).
         Используется для меню настроек в Flutter-приложении.
       operationId: listModels
       responses:
@@ -347,23 +351,26 @@ components:
   schemas:
     ModelInfo:
       type: object
-      required: [id, name, kind, provider]
+      required: [id, name, kind, provider, free]
       properties:
         id:
           type: string
-          description: ID модели (используется в запросах)
-          example: meta-llama/llama-3.3-70b-instruct
+          description: ID модели на Hugging Face (используется в запросах)
+          example: Qwen/Qwen2.5-7B-Instruct
         name:
           type: string
           description: Человекочитаемое название для меню
-          example: Llama 3.3 70B Instruct
+          example: Qwen2.5 7B Instruct
         kind:
           type: string
           enum: [text, image, edit]
         provider:
           type: string
-          enum: [openrouter, huggingface]
-          example: openrouter
+          enum: [huggingface]
+          example: huggingface
+        free:
+          type: boolean
+          description: Бесплатно ли использовать модель (не gated на HF)
 
     CreateSessionRequest:
       type: object
@@ -377,7 +384,7 @@ components:
         model:
           type: string
           description: ID текстовой модели из /models
-          example: meta-llama/llama-3.3-70b-instruct
+          example: Qwen/Qwen2.5-7B-Instruct
         system_prompt:
           type: string
           description: Системный промт (роль/правила игры)
@@ -391,7 +398,7 @@ components:
           example: Переименованная сессия
         model:
           type: string
-          example: deepseek/deepseek-chat-v3-0324
+          example: mistralai/Mistral-7B-Instruct-v0.3
         system_prompt:
           type: string
           example: Новые правила

@@ -1,18 +1,20 @@
 # AI Server API
 
-Backend на Dart (shelf) для Flutter-приложений. Работает с бесплатными нейросетями:
-принимает промт из приложения и возвращает текстовый ответ или сгенерированное изображение.
+Backend на Dart (shelf) для Flutter-приложений. Работает целиком через
+**Hugging Face Inference API** (без OpenRouter): принимает промт из приложения
+и возвращает текстовый ответ или сгенерированное/отредактированное изображение.
 
 ## Возможности
 
-- **Текстовые модели** — OpenRouter (free tier) и Hugging Face Inference API.
-  Список текстовых HF-моделей подтягивается с Hugging Face Hub автоматически
+- **Текстовые модели** — Hugging Face Inference API (text-generation).
+  Список текстовых моделей подтягивается с Hugging Face Hub автоматически
   (топ по загрузкам, кэш на час, fallback при недоступности Hub)
 - **Генерация изображений** — Stable Diffusion / FLUX через Hugging Face
 - **Сессии диалогов** — с системным промтом (роли/игры) и историей на SQLite
 - **Умный контекст** — скользящее окно (по умолчанию 20 сообщений) +
   автоматическое резюмирование старой истории через ту же модель
-- **Список моделей** — эндпоинт `/models` для меню настроек в приложении
+- **Список моделей** — эндпоинт `/models` подтягивает с Hugging Face Hub модели
+  по категориям `text`/`image`/`edit` с флагом `free` (бесплатность модели)
 - **Health + версия** — `/health` для мониторинга и проверки версии деплоя
 
 ## Запуск локально
@@ -29,12 +31,56 @@ dart run bin/server.dart
 | `PORT` | Порт сервера | `8080` |
 | `DB_PATH` | Путь к файлу SQLite | `data/ai_server.db` |
 | `HF_TOKEN` | Токен Hugging Face | — |
-| `OPENROUTER_API_KEY` | Ключ OpenRouter | — |
 | `CONTEXT_WINDOW` | Окно сообщений, передаваемых модели | `20` |
 | `SUMMARY_THRESHOLD` | Порог сообщений для резюмирования | `40` |
 | `IMAGE_MODEL` | Модель изображений по умолчанию | `stabilityai/stable-diffusion-xl-base-1.0` |
 | `IMAGE_EDIT_MODEL` | Модель редактирования изображений по умолчанию | `black-forest-labs/FLUX.1-Kontext-dev` |
 | `APP_VERSION` | Версия приложения (для /health) | `dev` |
+
+## Как пользоваться беком
+
+Бэкенд — «тонкий прокси» над Hugging Face: приложение не хранит историю и не
+знает моделей. Все контексты и маршрутизация — на сервере. Типовой сценарий:
+
+1. **Получить модели** — `GET /models` (см. ниже). Берите любой `id` из нужной
+   категории: `text`, `image`, `edit`. Флаг `free: true/false` показывает,
+   бесплатна ли модель.
+2. **Создать сессию** — `POST /sessions` с `{"name", "model", "system_prompt"}`.
+   В ответе — `id` сессии (сохраните его, он нужен для всех следующих шагов).
+3. **Отправить сообщение** — `POST /sessions/<id>/messages` с `{"message": "..."}`.
+   История и контекст ведутся на сервере автоматически.
+4. **Сгенерировать картинку** — `POST /images` с `{"prompt": "..."}`.
+   **Отредактировать** — `POST /images/edit` (исходная картинка в base64).
+
+Весь контекст (`CONTEXT_WINDOW` последних сообщений + авто-резюме) собирается
+сервером сам — клиент передаёт только текст нового сообщения.
+
+### Минимальный пример (curl)
+
+```bash
+# 1) Список моделей и категорий (текст / картинки / редактирование)
+curl https://aiapi.905911.ru:8445/models
+
+# 2) Создаём сессию и запоминаем id
+curl -X POST https://aiapi.905911.ru:8445/sessions \
+  -H "Content-Type: application/json" \
+  -d '{"name":"Демо","model":"Qwen/Qwen2.5-7B-Instruct","system_prompt":"Ты — помощник."}'
+
+# 3) Отправляем сообщение (подставьте session_id из шага 2)
+curl -X POST https://aiapi.905911.ru:8445/sessions/<session_id>/messages \
+  -H "Content-Type: application/json" \
+  -d '{"message":"Привет! Расскажи анекдот"}'
+
+# 4) Генерируем картинку
+curl -X POST https://aiapi.905911.ru:8445/images \
+  -H "Content-Type: application/json" \
+  -d '{"prompt":"кот в скафандре","model":"stabilityai/stable-diffusion-xl-base-1.0"}'
+```
+
+> Весь API защищён только HTTPS-портом `8445` на проде; локально — `8080`.
+
+Единый источник правды по API — `docs/openapi.yaml` и коллекции для Insomnia /
+Postman (`docs/*_hf.*`). Полный референс всех эндпоинтов — ниже.
 
 ## API
 
@@ -42,22 +88,42 @@ dart run bin/server.dart
 Статус, версия и количество сессий.
 
 ### `GET /models`
-Список доступных моделей в формате:
+Модели подтягиваются напрямую с Hugging Face Hub (кэш 1 час). Ответ — объект
+с категориями по видам задач:
+
 ```json
 {
-  "text": [{"id": "...", "name": "...", "kind": "text", "provider": "openrouter"}],
-  "image": [{"id": "...", "name": "...", "kind": "image", "provider": "huggingface"}],
-  "edit": [{"id": "...", "name": "...", "kind": "edit", "provider": "huggingface"}]
+  "text": [
+    {"id": "Qwen/Qwen2.5-7B-Instruct", "name": "Qwen2.5 7B Instruct", "kind": "text", "provider": "huggingface", "free": true},
+    {"id": "meta-llama/Llama-3.1-8B-Instruct", "name": "Llama 3.1 8B Instruct", "kind": "text", "provider": "huggingface", "free": false}
+  ],
+  "image": [
+    {"id": "stabilityai/stable-diffusion-xl-base-1.0", "name": "Stable Diffusion Xl Base 1.0", "kind": "image", "provider": "huggingface", "free": true}
+  ],
+  "edit": [
+    {"id": "black-forest-labs/FLUX.1-Kontext-dev", "name": "FLUX.1 Kontext Dev", "kind": "edit", "provider": "huggingface", "free": false}
+  ]
 }
 ```
-- `text` — текстовые модели для чатов: статический список (OpenRouter/HF) +
-  динамические топ-модели с Hugging Face Hub (провайдер `huggingface`);
-- `image` — генерация картинок с нуля (text-to-image),
-- `edit` — редактирование загруженных картинок (image-to-image).
 
-Динамические HF-модели кэшируются на 1 час; при недоступности Hub используется
-статический запасной список (`HuggingFaceH4/zephyr-7b-beta`,
-`mistralai/Mistral-7B-Instruct-v0.3`, `Qwen/Qwen2.5-7B-Instruct`).
+Категории (соответствуют `pipeline_tag` на HF):
+- `text` — модели для чата (`text-generation`);
+- `image` — генерация картинок с нуля (`text-to-image`);
+- `edit` — редактирование загруженных картинок (`image-to-image`).
+
+Поля модели:
+- `id` — подставляется в `model` при создании сессии / генерации;
+- `name` — человекочитаемое название для меню;
+- `kind` — категория (`text` / `image` / `edit`);
+- `provider` — всегда `huggingface`;
+- `free` — бесплатна ли модель: `false`, если она `gated` на HF
+  (требует согласия на доступ / PRO). `true` — использование открытое
+  (в рамках лимитов free-тира HF Inference).
+
+`GET /models?refresh=1` принудительно сбрасывает кэш и заново запрашивает Hub.
+При недоступности Hub используется статический запасной список
+(`HuggingFaceH4/zephyr-7b-beta`, `mistralai/Mistral-7B-Instruct-v0.3`,
+`Qwen/Qwen2.5-7B-Instruct` и др.).
 
 Используйте для меню настроек в приложении.
 
@@ -66,7 +132,7 @@ dart run bin/server.dart
 ```json
 {
   "name": "Игра 'Мастер подземелий'",
-  "model": "meta-llama/llama-3.3-70b-instruct",
+  "model": "Qwen/Qwen2.5-7B-Instruct",
   "system_prompt": "Ты — мастер подземелий..."
 }
 ```
@@ -196,17 +262,13 @@ dart test
 
 - `docs/openapi.yaml` — спецификация OpenAPI 3.0 (можно открыть в Swagger UI /
   Redoc / импортировать в Insomnia как "Import from OpenAPI").
-- `docs/insomnia_collection.json` — готовая коллекция для Insomnia (File →
+- `docs/insomnia_collection_hf.json` — готовая коллекция для Insomnia (File →
   Import → Import from File). Настроены переменные окружения: `baseUrl`,
   `sessionId`, модели. После создания сессии вставьте `session_id` в переменную
-  `sessionId` в Insomnia, и остальные запросы сессии заработают.
-- `docs/insomnia_collection_hf.json` — то же, но для работы целиком через
-  Hugging Face (без OpenRouter): `modelText` по умолчанию
-  `Qwen/Qwen2.5-7B-Instruct`. Импортировать только после удаления старой
-  коллекции «AI Server API» (иначе Insomnia продублирует Base Environment).
-- `docs/postman_collection.json` / `docs/postman_collection_hf.json` — те же
-  коллекции для Postman (+ окружения
-  `docs/postman_environment_production.json` и
+  `sessionId` в Insomnia, и остальные запросы сессии заработают. Работа целиком
+  через Hugging Face (без OpenRouter): `modelText` по умолчанию
+  `Qwen/Qwen2.5-7B-Instruct`, остальные модели подставляются из `GET /models`.
+- `docs/postman_collection_hf.json` — та же коллекция для Postman (+ окружение
   `docs/postman_environment_production_hf.json`).
 
 `baseUrl` во всех коллекциях: `https://aiapi.905911.ru:8445` (порт 8445

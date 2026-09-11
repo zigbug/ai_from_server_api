@@ -48,16 +48,18 @@ Response _healthHandler(Request req, ChatService service) {
 }
 
 Future<Response> _modelsHandler(Request req, ChatService service) async {
+  // Сброс кэша: /models?refresh=1
+  if (req.url.queryParameters['refresh'] == '1') {
+    service.catalog.invalidate();
+  }
   return jsonResponse({
-    'text': (await service.textModels())
+    'text': (await service.modelsOfKind(ModelKind.text))
         .map((m) => m.toJson())
         .toList(),
-    'image': availableModels
-        .where((m) => m.kind == ModelKind.image)
+    'image': (await service.modelsOfKind(ModelKind.image))
         .map((m) => m.toJson())
         .toList(),
-    'edit': availableModels
-        .where((m) => m.kind == ModelKind.edit)
+    'edit': (await service.modelsOfKind(ModelKind.edit))
         .map((m) => m.toJson())
         .toList(),
   });
@@ -129,7 +131,7 @@ Future<Response> _createSession(Request req, ChatService service) async {
     final name = (body['name'] as String? ?? 'New session').trim();
     final model = (body['model'] as String? ?? await service.defaultTextModelId()).trim();
     final systemPrompt = (body['system_prompt'] as String? ?? '').trim();
-    final session = service.createSession(
+    final session = await service.createSession(
       name: name,
       model: model,
       systemPrompt: systemPrompt,

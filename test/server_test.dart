@@ -49,6 +49,10 @@ void main() {
     expect((body['text'] as List).isNotEmpty, isTrue);
     expect((body['image'] as List).isNotEmpty, isTrue);
     expect((body['edit'] as List).isNotEmpty, isTrue);
+    // Каждая модель имеет флаг `free`.
+    final firstText = (body['text'] as List).first as Map;
+    expect(firstText['free'], isA<bool>());
+    expect(firstText['provider'], 'huggingface');
   });
 
   test('Image edit validation', () async {
@@ -85,7 +89,7 @@ void main() {
       headers: {'content-type': 'application/json'},
       body: jsonEncode({
         'name': 'Test session',
-        'model': 'meta-llama/llama-3.3-70b-instruct',
+        'model': 'Qwen/Qwen2.5-7B-Instruct',
         'system_prompt': 'You are a helpful assistant.',
       }),
     );
