@@ -85,6 +85,32 @@ paths:
                     description: Количество активных сессий
                     example: 3
 
+  /version:
+    get:
+      tags: [Health]
+      summary: Версия API и коммит сборки
+      operationId: getVersion
+      responses:
+        '200':
+          description: Версия релиза и git-коммит
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [name, version, commit]
+                properties:
+                  name:
+                    type: string
+                    example: AI Server API
+                  version:
+                    type: string
+                    description: Версия из git-тега (build-arg VERSION)
+                    example: v2.0.0
+                  commit:
+                    type: string
+                    description: Короткий SHA git-коммита сборки
+                    example: a1b2c3d
+
   /models:
     get:
       tags: [Models]

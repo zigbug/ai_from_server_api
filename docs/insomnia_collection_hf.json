@@ -116,6 +116,29 @@
       "settingFollowRedirects": "global"
     },
     {
+      "_id": "req_version_hf",
+      "_type": "request",
+      "parentId": "fld_health_hf",
+      "name": "GET /version",
+      "method": "GET",
+      "url": "{{ baseUrl }}/version",
+      "parameters": [],
+      "headers": [],
+      "authentication": {},
+      "metaSortKey": "3000",
+      "body": {
+        "mimeType": "",
+        "text": ""
+      },
+      "isPrivate": false,
+      "settingStoreCookies": true,
+      "settingSendCookies": true,
+      "settingDisableRenderRequestBody": false,
+      "settingEncodeUrl": true,
+      "settingRebuildPath": true,
+      "settingFollowRedirects": "global"
+    },
+    {
       "_id": "req_models_hf",
       "_type": "request",
       "parentId": "fld_models_hf",

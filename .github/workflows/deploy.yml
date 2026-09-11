@@ -42,6 +42,7 @@ jobs:
             git checkout "$DEPLOY_TAG" || git checkout origin/main
 
             export TAG="$DEPLOY_TAG"
-            docker compose build --build-arg VERSION=$TAG
+            export SHA="$(git rev-parse --short HEAD)"
+            docker compose build --build-arg VERSION=$TAG --build-arg COMMIT=$SHA
             docker compose up -d
             docker image prune -f

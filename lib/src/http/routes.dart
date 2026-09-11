@@ -13,6 +13,7 @@ Router buildRouter(ChatService service) {
   final router = Router()
     ..get('/', (req) => _rootHandler(req, service))
     ..get('/health', (req) => _healthHandler(req, service))
+    ..get('/version', (req) => _versionHandler(req, service))
     ..get('/models', (req) => _modelsHandler(req, service))
     ..post('/images', (req) => _imagesHandler(req, service))
     ..post('/images/edit', (req) => _imagesEditHandler(req, service))
@@ -32,7 +33,8 @@ Response _rootHandler(Request req, ChatService service) {
     jsonEncode({
       'name': 'AI Server API',
       'version': service.config.version,
-      'endpoints': ['/health', '/models', '/images', '/sessions', '/sessions/<id>/messages'],
+      'commit': service.config.commit,
+      'endpoints': ['/health', '/version', '/models', '/images', '/sessions', '/sessions/<id>/messages'],
     }),
     headers: {'content-type': 'application/json; charset=utf-8'},
   );
@@ -42,8 +44,17 @@ Response _healthHandler(Request req, ChatService service) {
   return jsonResponse({
     'status': 'ok',
     'version': service.config.version,
+    'commit': service.config.commit,
     'time': DateTime.now().toUtc().toIso8601String(),
     'sessions': service.store.listSessions().length,
+  });
+}
+
+Response _versionHandler(Request req, ChatService service) {
+  return jsonResponse({
+    'name': 'AI Server API',
+    'version': service.config.version,
+    'commit': service.config.commit,
   });
 }
 

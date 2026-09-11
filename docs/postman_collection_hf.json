@@ -33,6 +33,18 @@
               "path": ["health"]
             }
           }
+        },
+        {
+          "name": "GET /version",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/version",
+              "host": ["{{baseUrl}}"],
+              "path": ["version"]
+            }
+          }
         }
       ]
     },

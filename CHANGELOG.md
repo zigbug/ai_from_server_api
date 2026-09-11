@@ -1,3 +1,9 @@
+## 2.0.1
+
+- **Фикс Inference API**: Hugging Face отключил старый хост
+  `api-inference.huggingface.co`. Все запросы к моделям теперь идут на
+  `https://router.huggingface.co/hf-inference/models/<model>`.
+
 ## 2.0.0
 
 - **Полный уход от OpenRouter**: удалён `OpenRouterProvider`, конфиг

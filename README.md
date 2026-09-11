@@ -85,7 +85,14 @@ Postman (`docs/*_hf.*`). Полный референс всех эндпоинт
 ## API
 
 ### `GET /health`
-Статус, версия и количество сессий.
+Статус, версия, коммит сборки и количество сессий.
+
+### `GET /version`
+Версия API без прочей служебной информации:
+```json
+{"name": "AI Server API", "version": "v2.0.0", "commit": "a1b2c3d"}
+```
+Используйте для quick-проверки какой релиз запущен: `curl https://aiapi.905911.ru:8445/version`.
 
 ### `GET /models`
 Модели подтягиваются напрямую с Hugging Face Hub (кэш 1 час). Ответ — объект
@@ -237,8 +244,17 @@ Postman (`docs/*_hf.*`). Полный референс всех эндпоинт
    git push origin v1.0.1
    ```
 3. GitHub Actions автоматически выполнит: checkout → SSH на сервер →
-   `docker compose build` (передаёт тег как `VERSION`) → `docker compose up -d`.
+   `docker compose build --build-arg VERSION=<tag> --build-arg COMMIT=<sha>` → `docker compose up -d`.
 4. БД сохраняется в Docker volume — данные не теряются при обновлении.
+
+### Как проверить запущенную версию на сервере
+
+```bash
+curl https://aiapi.905911.ru:8445/version
+# → {"name":"AI Server API","version":"v2.0.0","commit":"a1b2c3d"}
+```
+Версия берётся из git-тега, коммит — из `git rev-parse --short HEAD`
+в момент сборки Docker-образа.
 
 ### Необходимые секреты GitHub (Settings → Secrets and variables → Actions)
 

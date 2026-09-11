@@ -42,6 +42,15 @@ void main() {
     expect(body['status'], 'ok');
   });
 
+  test('Version', () async {
+    final r = await get(Uri.parse('$host/version'));
+    expect(r.statusCode, 200);
+    final body = jsonDecode(r.body) as Map<String, dynamic>;
+    expect(body['name'], 'AI Server API');
+    expect(body['version'], isA<String>());
+    expect(body['commit'], isA<String>());
+  });
+
   test('Models list', () async {
     final r = await get(Uri.parse('$host/models'));
     expect(r.statusCode, 200);

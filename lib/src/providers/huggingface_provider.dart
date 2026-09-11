@@ -14,7 +14,7 @@ class HuggingFaceProvider implements LLMProvider, ImageProvider {
 
   final String? token;
 
-  static const _baseUrl = 'https://api-inference.huggingface.co/models/';
+  static const _baseUrl = 'https://router.huggingface.co/hf-inference/models/';
 
   Map<String, String> get _headers => {
         'Content-Type': 'application/json',
