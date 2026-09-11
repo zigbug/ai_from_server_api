@@ -64,7 +64,7 @@ Future<Response> _modelsHandler(Request req, ChatService service) async {
     service.catalog.invalidate();
   }
   return jsonResponse({
-    'text': (await service.modelsOfKind(ModelKind.text))
+    'text': (await service.textModels())
         .map((m) => m.toJson())
         .toList(),
     'image': (await service.modelsOfKind(ModelKind.image))

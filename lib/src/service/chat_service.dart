@@ -4,22 +4,26 @@ import '../config/config.dart';
 import '../models.dart';
 import '../models/model_catalog.dart';
 import '../providers/huggingface_provider.dart';
+import '../providers/openrouter_provider.dart';
 import '../providers/provider.dart';
 import '../store/session_store.dart';
 
 /// Сервис, координирующий работу с сессиями, контекстом и провайдерами.
-/// Все запросы идут через Hugging Face Inference API.
+/// Модели с provider `huggingface` идут через Hugging Face Inference API,
+/// остальные — через OpenRouter (включая free-роутер `openrouter/free`).
 class ChatService {
   ChatService({
     required this.store,
     required this.config,
     required this.huggingFace,
+    required this.openRouter,
     required this.catalog,
   });
 
   final SessionStore store;
   final Config config;
   final HuggingFaceProvider huggingFace;
+  final OpenRouterProvider openRouter;
   final ModelCatalog catalog;
 
   /// Создать сессию (проверяет, что модель не image/edit).
@@ -69,7 +73,8 @@ class ChatService {
 
     final systemPrompt = _buildSystemPrompt(summary, session.systemPrompt);
 
-    final result = await huggingFace.chat(
+    final provider = await _providerForModel(session.model);
+    final result = await provider.chat(
       messages: history,
       model: session.model,
       systemPrompt: systemPrompt,
@@ -107,13 +112,23 @@ class ChatService {
     }
     toSummarize.addAll(old);
 
-    final newSummary = await huggingFace.summarize(
+    final newSummary = await (await _providerForModel(model)).summarize(
       messages: toSummarize,
       model: model,
     );
     store.setSummary(sessionId, newSummary);
 
     store.trimHistory(sessionId, keepLast: config.contextWindow);
+  }
+
+  /// Выбрать провайдера по модели: динамические/статичные HF-модели идут
+  /// в Hugging Face, всё остальное (включая `openrouter/free`) — в OpenRouter.
+  Future<LLMProvider> _providerForModel(String modelId) async {
+    final info = await findTextModel(modelId);
+    if (info != null && info.provider == 'huggingface') {
+      return huggingFace;
+    }
+    return openRouter;
   }
 
   String _buildSystemPrompt(String summary, String sessionPrompt) {

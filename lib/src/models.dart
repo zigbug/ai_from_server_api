@@ -111,6 +111,14 @@ class Session {
 /// Используется как запасной вариант при недоступности HF Hub,
 /// а также для валидации ID моделей.
 final List<ModelInfo> availableModels = [
+  // --- Текстовые модели (OpenRouter free, без баланса) ---
+  ModelInfo(
+    id: 'openrouter/free',
+    name: 'OpenRouter Free (автовыбор)',
+    kind: ModelKind.text,
+    provider: 'openrouter',
+    free: true,
+  ),
   // --- Текстовые модели (Hugging Face) ---
   ModelInfo(
     id: 'HuggingFaceH4/zephyr-7b-beta',
