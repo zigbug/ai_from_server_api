@@ -8,6 +8,7 @@ import 'package:ai_from_server_api/src/config/config.dart';
 import 'package:ai_from_server_api/src/http/routes.dart';
 import 'package:ai_from_server_api/src/models/model_catalog.dart';
 import 'package:ai_from_server_api/src/providers/huggingface_provider.dart';
+import 'package:ai_from_server_api/src/providers/openrouter_provider.dart';
 import 'package:ai_from_server_api/src/service/chat_service.dart';
 import 'package:ai_from_server_api/src/store/session_store.dart';
 
@@ -21,6 +22,9 @@ Future<void> main(List<String> args) async {
   // Провайдер Hugging Face Inference API.
   final huggingFace = HuggingFaceProvider(config.hfToken);
 
+  // Провайдер OpenRouter (free-роутер `openrouter/free` без баланса).
+  final openRouter = OpenRouterProvider(config.openRouterApiKey);
+
   // Каталог HF-моделей (динамический, с кэшем).
   final catalog = ModelCatalog();
 
@@ -28,6 +32,7 @@ Future<void> main(List<String> args) async {
     store: store,
     config: config,
     huggingFace: huggingFace,
+    openRouter: openRouter,
     catalog: catalog,
   );
 
