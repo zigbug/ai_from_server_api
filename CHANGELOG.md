@@ -1,3 +1,13 @@
+## 2.2.0
+
+- **Генерация картинок через Pollinations**: добавлен `PollinationsImageProvider`
+  (`image.pollinations.ai/prompt/`, без ключа, работает из РФ). Модель
+  `pollinations/sana` добавлена первой в каталог image-моделей, по умолчанию
+  `/images` генерирует через неё. Edit (image-to-image) Pollinations не
+  поддерживает — остаётся на Hugging Face.
+- **`/models` для картинок**: объединяет статический список (включая
+  `pollinations/sana`) и динамический HF-каталог.
+
 ## 2.1.0
 
 - **Groq для текстовых моделей**: добавлен `GroqProvider`

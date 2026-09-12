@@ -6,13 +6,15 @@ import '../models/model_catalog.dart';
 import '../providers/groq_provider.dart';
 import '../providers/huggingface_provider.dart';
 import '../providers/openrouter_provider.dart';
+import '../providers/pollinations_provider.dart';
 import '../providers/provider.dart';
 import '../store/session_store.dart';
 
 /// Сервис, координирующий работу с сессиями, контекстом и провайдерами.
 /// Модели с provider `huggingface` идут через Hugging Face Inference API,
 /// с provider `groq` — через Groq, остальные — через OpenRouter
-/// (включая free-роутер `openrouter/free`).
+/// (включая free-роутер `openrouter/free`). Картинки с provider `pollinations`
+/// идут через Pollinations (бесплатно, без ключа).
 class ChatService {
   ChatService({
     required this.store,
@@ -20,6 +22,7 @@ class ChatService {
     required this.huggingFace,
     required this.openRouter,
     required this.groq,
+    required this.pollinations,
     required this.catalog,
   });
 
@@ -28,6 +31,7 @@ class ChatService {
   final HuggingFaceProvider huggingFace;
   final OpenRouterProvider openRouter;
   final GroqProvider groq;
+  final PollinationsImageProvider pollinations;
   final ModelCatalog catalog;
 
   /// Создать сессию (проверяет, что модель не image/edit).
@@ -171,9 +175,19 @@ class ChatService {
     required String prompt,
     required String model,
   }) async {
-    final imageModels = await catalog.modelsOfKind(ModelKind.image);
-    if (!imageModels.any((m) => m.id == model)) {
+    final available = await imageModels();
+    ModelInfo? info;
+    for (final m in available) {
+      if (m.id == model) {
+        info = m;
+        break;
+      }
+    }
+    if (info == null) {
       throw ArgumentError('Not an image model: $model');
+    }
+    if (info.provider == 'pollinations') {
+      return pollinations.generateImage(prompt: prompt, model: model);
     }
     return huggingFace.generateImage(prompt: prompt, model: model);
   }
@@ -208,6 +222,19 @@ class ChatService {
   /// Список моделей для заданной категории.
   Future<List<ModelInfo>> modelsOfKind(ModelKind kind) async {
     return catalog.modelsOfKind(kind);
+  }
+
+  /// Объединённый список моделей генерации изображений: статический
+  /// (включая `pollinations/sana`) + динамический HF-каталог.
+  Future<List<ModelInfo>> imageModels() async {
+    final byId = <String, ModelInfo>{
+      for (final m in availableModels.where((m) => m.kind == ModelKind.image))
+        m.id: m,
+    };
+    for (final m in await catalog.modelsOfKind(ModelKind.image)) {
+      byId[m.id] = m;
+    }
+    return byId.values.toList();
   }
 
   /// Объединённый список текстовых моделей: статический fallback +

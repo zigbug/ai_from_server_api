@@ -177,6 +177,14 @@ final List<ModelInfo> availableModels = [
     provider: 'huggingface',
     free: true,
   ),
+  // --- Картинки (Pollinations, бесплатно без ключа) ---
+  ModelInfo(
+    id: 'pollinations/sana',
+    name: 'Sana (Pollinations)',
+    kind: ModelKind.image,
+    provider: 'pollinations',
+    free: true,
+  ),
   // --- Картинки (Hugging Face) ---
   ModelInfo(
     id: 'stabilityai/stable-diffusion-xl-base-1.0',

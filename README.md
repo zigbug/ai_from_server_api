@@ -1,16 +1,18 @@
 # AI Server API
 
 Backend на Dart (shelf) для Flutter-приложений. Принимает промт из приложения
-и возвращает текстовый ответ (Groq / Hugging Face) или сгенерированное/
-отредактированное изображение (Hugging Face).
+и возвращает текстовый ответ (Groq / OpenRouter free) или сгенерированное
+изображение (Pollinations / Hugging Face).
 
 ## Возможности
 
-- **Текстовые модели** — Groq (OpenAI-совместимый API) + Hugging Face
+- **Текстовые модели** — Groq (OpenAI-совместимый API) + OpenRouter free
+  (бесплатный роутер `openrouter/free`, без баланса) + Hugging Face
   Inference API (text-generation). Список текстовых моделей подтягивается
   с Groq и Hugging Face Hub автоматически (топ по загрузкам, кэш на час,
   fallback при недоступности Hub)
-- **Генерация изображений** — Stable Diffusion / FLUX через Hugging Face
+- **Генерация изображений** — Pollinations (`pollinations/sana`, бесплатно,
+  без ключа, работает из РФ) и Stable Diffusion / FLUX через Hugging Face
 - **Сессии диалогов** — с системным промтом (роли/игры) и историей на SQLite
 - **Умный контекст** — скользящее окно (по умолчанию 20 сообщений) +
   автоматическое резюмирование старой истории через ту же модель
@@ -36,7 +38,7 @@ dart run bin/server.dart
 | `OPENROUTER_API_KEY` | Ключ OpenRouter (free-роутер, необязателен) | — |
 | `CONTEXT_WINDOW` | Окно сообщений, передаваемых модели | `20` |
 | `SUMMARY_THRESHOLD` | Порог сообщений для резюмирования | `40` |
-| `IMAGE_MODEL` | Модель изображений по умолчанию | `stabilityai/stable-diffusion-xl-base-1.0` |
+| `IMAGE_MODEL` | Модель изображений по умолчанию | `pollinations/sana` |
 | `IMAGE_EDIT_MODEL` | Модель редактирования изображений по умолчанию | `black-forest-labs/FLUX.1-Kontext-dev` |
 | `APP_VERSION` | Версия приложения (для /health) | `dev` |
 

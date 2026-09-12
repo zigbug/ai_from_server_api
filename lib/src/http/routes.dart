@@ -67,7 +67,7 @@ Future<Response> _modelsHandler(Request req, ChatService service) async {
     'text': (await service.textModels())
         .map((m) => m.toJson())
         .toList(),
-    'image': (await service.modelsOfKind(ModelKind.image))
+    'image': (await service.imageModels())
         .map((m) => m.toJson())
         .toList(),
     'edit': (await service.modelsOfKind(ModelKind.edit))

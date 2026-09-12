@@ -49,7 +49,7 @@ class Config {
             '$defaultSummaryThreshold',
       ),
       imageModel:
-          Platform.environment['IMAGE_MODEL'] ?? 'stabilityai/stable-diffusion-xl-base-1.0',
+          Platform.environment['IMAGE_MODEL'] ?? 'pollinations/sana',
       imageEditModel: Platform.environment['IMAGE_EDIT_MODEL'] ??
           'black-forest-labs/FLUX.1-Kontext-dev',
       version: Platform.environment['APP_VERSION'] ?? 'dev',
