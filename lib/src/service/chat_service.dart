@@ -39,12 +39,14 @@ class ChatService {
     required String name,
     required String model,
     String systemPrompt = '',
+    String? provider,
   }) async {
     await _validateTextModel(model);
     return store.createSession(
       name: name,
       model: model,
       systemPrompt: systemPrompt,
+      provider: _normalizeProvider(provider),
     );
   }
 
@@ -70,7 +72,7 @@ class ChatService {
     );
 
     // Управляем контекстом: при необходимости сжимаем историю в резюме.
-    await _manageContext(sessionId, session.model);
+    await _manageContext(sessionId, session.model, session.provider);
 
     // Собираем финальный контекст для модели.
     final history = store.getLastMessages(
@@ -81,7 +83,7 @@ class ChatService {
 
     final systemPrompt = _buildSystemPrompt(summary, session.systemPrompt);
 
-    final provider = await _providerForModel(session.model);
+    final provider = await _providerForModel(session.model, session.provider);
     final result = await provider.chat(
       messages: history,
       model: session.model,
@@ -99,7 +101,11 @@ class ChatService {
 
   /// Управление контекстом: когда сообщений больше порога, старые
   /// сворачиваются в резюме, а из истории удаляются.
-  Future<void> _manageContext(String sessionId, String model) async {
+  Future<void> _manageContext(
+    String sessionId,
+    String model,
+    String? explicitProvider,
+  ) async {
     final count = store.messageCount(sessionId);
     if (count <= config.summaryThreshold) {
       return;
@@ -120,34 +126,48 @@ class ChatService {
     }
     toSummarize.addAll(old);
 
-    final newSummary = await (await _providerForModel(model)).summarize(
-      messages: toSummarize,
-      model: model,
-    );
+    final newSummary = await (await _providerForModel(model, explicitProvider))
+        .summarize(
+          messages: toSummarize,
+          model: model,
+        );
     store.setSummary(sessionId, newSummary);
 
     store.trimHistory(sessionId, keepLast: config.contextWindow);
   }
 
-  /// Выбрать провайдера по модели: `huggingface` — Hugging Face,
-  /// `groq` — Groq, всё остальное (включая `openrouter/free`) — OpenRouter.
-  /// Смотрит в объединённый список, чтобы модели Groq (в т.ч. `openai/gpt-oss-*`,
-  /// дублирующиеся на HF Hub) гарантированно шли в Groq.
-  Future<LLMProvider> _providerForModel(String modelId) async {
+  /// Выбрать провайдера для текстовой модели:
+  /// 1) явно заданный [explicitProvider] (groq/openrouter/huggingface);
+  /// 2) иначе — по ID модели в каталоге: Groq-модели → Groq,
+  ///    Pollinations → Pollinations, остальное (включая неизвестное) → HF.
+  Future<LLMProvider> _providerForModel(
+    String modelId,
+    String? explicitProvider,
+  ) async {
+    switch (_normalizeProvider(explicitProvider)) {
+      case 'groq':
+        return groq;
+      case 'openrouter':
+        return openRouter;
+      case 'huggingface':
+        return huggingFace;
+    }
+
     final models = await textModels();
     for (final m in models) {
       if (m.id == modelId) {
         switch (m.provider) {
-          case 'huggingface':
-            return huggingFace;
           case 'groq':
             return groq;
-          default:
+          case 'openrouter':
             return openRouter;
+          default:
+            return huggingFace;
         }
       }
     }
-    return openRouter;
+    // Неизвестный ID — по умолчанию Hugging Face.
+    return huggingFace;
   }
 
   static String _prettyModelName(String id) {
@@ -174,6 +194,7 @@ class ChatService {
   Future<ImageResult> generateImage({
     required String prompt,
     required String model,
+    String? provider,
   }) async {
     final available = await imageModels();
     ModelInfo? info;
@@ -185,6 +206,13 @@ class ChatService {
     }
     if (info == null) {
       throw ArgumentError('Not an image model: $model');
+    }
+
+    final explicit = _normalizeProvider(provider);
+    if (explicit != null) {
+      return explicit == 'pollinations'
+          ? pollinations.generateImage(prompt: prompt, model: model)
+          : huggingFace.generateImage(prompt: prompt, model: model);
     }
     if (info.provider == 'pollinations') {
       return pollinations.generateImage(prompt: prompt, model: model);
@@ -202,10 +230,24 @@ class ChatService {
     int? numInferenceSteps,
     int? width,
     int? height,
+    String? provider,
   }) async {
     final editModels = await catalog.modelsOfKind(ModelKind.edit);
     if (!editModels.any((m) => m.id == model)) {
       throw ArgumentError('Not an image-edit model: $model');
+    }
+
+    if ((_normalizeProvider(provider) ?? 'huggingface') == 'pollinations') {
+      return pollinations.editImage(
+        prompt: prompt,
+        image: image,
+        model: model,
+        negativePrompt: negativePrompt,
+        guidanceScale: guidanceScale,
+        numInferenceSteps: numInferenceSteps,
+        width: width,
+        height: height,
+      );
     }
     return huggingFace.editImage(
       prompt: prompt,
@@ -304,5 +346,18 @@ class ChatService {
     if (editModels.any((m) => m.id == model)) {
       throw ArgumentError('Image-edit model cannot be used for text chat: $model');
     }
+  }
+
+  /// Нормализовать имя провайдера (null/пустая строка → null).
+  static String? _normalizeProvider(String? p) {
+    if (p == null || p.trim().isEmpty) return null;
+    return p.trim().toLowerCase();
+  }
+
+  /// Полный сброс кэшей: каталог HF-моделей + кэш маппинга провайдеров.
+  /// Списки Groq и Pollinations уже тянутся заново при каждом вызове.
+  void invalidateAll() {
+    catalog.invalidate();
+    huggingFace.invalidateProviderMapping();
   }
 }

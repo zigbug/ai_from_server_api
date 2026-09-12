@@ -34,6 +34,7 @@ class SessionStore {
         name TEXT NOT NULL,
         model TEXT NOT NULL,
         system_prompt TEXT NOT NULL DEFAULT '',
+        provider TEXT,
         summary TEXT NOT NULL DEFAULT '',
         created_at TEXT NOT NULL,
         updated_at TEXT NOT NULL
@@ -54,6 +55,20 @@ class SessionStore {
       CREATE INDEX IF NOT EXISTS idx_messages_session
       ON messages (session_id, id);
     ''');
+
+    _migrate();
+  }
+
+  /// Миграции схемы для уже существующих баз.
+  void _migrate() {
+    // v2: колонка provider в sessions (явный выбор провайдера).
+    final columns = _db
+        .select('PRAGMA table_info(sessions)')
+        .map((r) => r['name'] as String)
+        .toSet();
+    if (!columns.contains('provider')) {
+      _db.execute("ALTER TABLE sessions ADD COLUMN provider TEXT");
+    }
   }
 
   /// Создать новую сессию.
@@ -61,19 +76,21 @@ class SessionStore {
     required String name,
     required String model,
     required String systemPrompt,
+    String? provider,
   }) {
     final id = _uuid.v4();
     final now = DateTime.now().toUtc().toIso8601String();
     _db.execute(
-      'INSERT INTO sessions (id, name, model, system_prompt, summary, created_at, updated_at) '
-      'VALUES (?, ?, ?, ?, ?, ?, ?)',
-      [id, name, model, systemPrompt, '', now, now],
+      'INSERT INTO sessions (id, name, model, system_prompt, provider, summary, created_at, updated_at) '
+      'VALUES (?, ?, ?, ?, ?, ?, ?, ?)',
+      [id, name, model, systemPrompt, provider, '', now, now],
     );
     return Session(
       id: id,
       name: name,
       model: model,
       systemPrompt: systemPrompt,
+      provider: provider,
     );
   }
 
@@ -99,17 +116,19 @@ class SessionStore {
       name: row['name'] as String,
       model: row['model'] as String,
       systemPrompt: row['system_prompt'] as String,
+      provider: row['provider'] as String?,
       createdAt: DateTime.parse(row['created_at'] as String),
       updatedAt: DateTime.parse(row['updated_at'] as String),
     );
   }
 
-  /// Обновить данные сессии (имя, модель, системный промт).
+  /// Обновить данные сессии (имя, модель, системный промт, провайдер).
   Session updateSession({
     required String id,
     String? name,
     String? model,
     String? systemPrompt,
+    String? provider,
   }) {
     final existing = getSession(id);
     if (existing == null) {
@@ -119,13 +138,15 @@ class SessionStore {
       name: name,
       model: model,
       systemPrompt: systemPrompt,
+      provider: provider,
     );
     _db.execute(
-      'UPDATE sessions SET name = ?, model = ?, system_prompt = ?, updated_at = ? WHERE id = ?',
+      'UPDATE sessions SET name = ?, model = ?, system_prompt = ?, provider = ?, updated_at = ? WHERE id = ?',
       [
         updated.name,
         updated.model,
         updated.systemPrompt,
+        updated.provider,
         updated.updatedAt.toUtc().toIso8601String(),
         id,
       ],

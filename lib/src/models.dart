@@ -74,6 +74,7 @@ class Session {
     required this.name,
     required this.model,
     required this.systemPrompt,
+    this.provider,
     DateTime? createdAt,
     DateTime? updatedAt,
   })  : createdAt = createdAt ?? DateTime.now(),
@@ -83,15 +84,26 @@ class Session {
   final String name;
   final String model;
   final String systemPrompt;
+
+  /// Явно заданный провайдер (groq / openrouter / huggingface / pollinations).
+  /// Если null — провайдер определяется автоматически по ID модели.
+  final String? provider;
+
   final DateTime createdAt;
   final DateTime updatedAt;
 
-  Session copyWith({String? name, String? model, String? systemPrompt}) {
+  Session copyWith({
+    String? name,
+    String? model,
+    String? systemPrompt,
+    String? provider,
+  }) {
     return Session(
       id: id,
       name: name ?? this.name,
       model: model ?? this.model,
       systemPrompt: systemPrompt ?? this.systemPrompt,
+      provider: provider ?? this.provider,
       createdAt: createdAt,
       updatedAt: DateTime.now(),
     );
@@ -101,6 +113,7 @@ class Session {
         'id': id,
         'name': name,
         'model': model,
+        'provider': provider,
         'system_prompt': systemPrompt,
         'created_at': createdAt.toIso8601String(),
         'updated_at': updatedAt.toIso8601String(),
