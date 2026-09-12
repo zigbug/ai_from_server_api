@@ -1,3 +1,36 @@
+## 2.3.0
+
+- **Hugging Face на Inference Providers**: провайдер переведён с устаревшего
+  `hf-inference` (снят HF в июле 2025) на новый OpenAI-совместимый роутер:
+  текстовые модели идут через `router.huggingface.co/v1/chat/completions`,
+  где HF сам выбирает серверного провайдера.
+- **Картинки через Inference Providers**: генерация и редактирование
+  изображений идут через `router.huggingface.co/{provider}/{providerModelId}`
+  (fal-ai, replicate, wavespeed и др., оплата кредитами HF-аккаунта).
+  Маппинг «модель Hub → провайдер» резолвится динамически из
+  `inferenceProviderMapping` с кэшем в памяти, для статических моделей
+  каталога используется встроенная таблица.
+- **Явный выбор провайдера**: `/sessions`, `/images` и `/images/edit`
+  принимают `provider` (`groq` / `openrouter` / `huggingface` / `pollinations`).
+  Приоритет: явный provider → провайдер модели из каталога
+  (Groq/Pollinations) → Hugging Face по умолчанию. Провайдер сессии
+  хранится в БД и используется при дальнейших сообщениях.
+- **Сортировка `/models`**: модели в каждой категории отсортированы
+  сначала по провайдеру, внутри — по бесплатности и имени.
+- **`/models?refresh=1`**: полный сброс кэшей (каталог HF + маппинг
+  провайдеров); списки Groq/Pollinations перечитываются всегда заново.
+- Ответы `/images` и `/images/edit` содержат фактический `provider`.
+
+## 2.2.0
+
+- **Генерация картинок через Pollinations**: добавлен `PollinationsImageProvider`
+  (`image.pollinations.ai/prompt/`, без ключа, работает из РФ). Модель
+  `pollinations/sana` добавлена первой в каталог image-моделей, по умолчанию
+  `/images` генерирует через неё. Edit (image-to-image) Pollinations не
+  поддерживает — остаётся на Hugging Face.
+- **`/models` для картинок**: объединяет статический список (включая
+  `pollinations/sana`) и динамический HF-каталог.
+
 ## 2.1.0
 
 - **Groq для текстовых моделей**: добавлен `GroqProvider`

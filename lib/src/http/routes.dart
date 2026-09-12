@@ -59,21 +59,38 @@ Response _versionHandler(Request req, ChatService service) {
 }
 
 Future<Response> _modelsHandler(Request req, ChatService service) async {
-  // Сброс кэша: /models?refresh=1
+  // Полный сброс кэшей: /models?refresh=1
   if (req.url.queryParameters['refresh'] == '1') {
-    service.catalog.invalidate();
+    service.invalidateAll();
   }
   return jsonResponse({
     'text': (await service.textModels())
         .map((m) => m.toJson())
-        .toList(),
-    'image': (await service.modelsOfKind(ModelKind.image))
+        .toList()
+      ..sort(_byGroup),
+    'image': (await service.imageModels())
         .map((m) => m.toJson())
-        .toList(),
+        .toList()
+      ..sort(_byGroup),
     'edit': (await service.modelsOfKind(ModelKind.edit))
         .map((m) => m.toJson())
-        .toList(),
+        .toList()
+      ..sort(_byGroup),
   });
+}
+
+/// Сортировка моделей по провайдеру и бесплатности: сначала free,
+/// внутри — по провайдеру (сгруппированы), затем по имени.
+int _byGroup(Map<String, Object?> a, Map<String, Object?> b) {
+  final af = a['free'] as bool? ?? false;
+  final bf = b['free'] as bool? ?? false;
+  if (af != bf) return af ? -1 : 1;
+  final ap = a['provider'] as String? ?? '';
+  final bp = b['provider'] as String? ?? '';
+  if (ap != bp) return ap.compareTo(bp);
+  final an = a['name'] as String? ?? '';
+  final bn = b['name'] as String? ?? '';
+  return an.compareTo(bn);
 }
 
 Future<Response> _imagesHandler(Request req, ChatService service) async {
@@ -84,12 +101,17 @@ Future<Response> _imagesHandler(Request req, ChatService service) async {
     if (prompt == null || prompt.trim().isEmpty) {
       return jsonResponse({'error': 'prompt is required'}, statusCode: 400);
     }
-    final result = await service.generateImage(prompt: prompt, model: model);
+    final result = await service.generateImage(
+      prompt: prompt,
+      model: model,
+      provider: body['provider'] as String?,
+    );
     return jsonResponse({
       'image': base64Encode(result.bytes),
       'mime_type': result.mimeType,
       'prompt': prompt,
       'model': model,
+      'provider': result.provider,
     });
   } catch (e) {
     return failure(e);
@@ -119,6 +141,7 @@ Future<Response> _imagesEditHandler(Request req, ChatService service) async {
       prompt: prompt,
       image: image,
       model: model,
+      provider: body['provider'] as String?,
       negativePrompt: body['negative_prompt'] as String?,
       guidanceScale: (body['guidance_scale'] as num?)?.toDouble(),
       numInferenceSteps: (body['num_inference_steps'] as num?)?.toInt(),
@@ -130,6 +153,7 @@ Future<Response> _imagesEditHandler(Request req, ChatService service) async {
       'mime_type': result.mimeType,
       'prompt': prompt,
       'model': model,
+      'provider': result.provider,
     });
   } catch (e) {
     return failure(e);
@@ -146,6 +170,7 @@ Future<Response> _createSession(Request req, ChatService service) async {
       name: name,
       model: model,
       systemPrompt: systemPrompt,
+      provider: body['provider'] as String?,
     );
     return jsonResponse(session.toJson(), statusCode: 201);
   } catch (e) {
@@ -174,6 +199,7 @@ Future<Response> _updateSession(Request req, ChatService service, String id) asy
       name: body['name'] as String?,
       model: body['model'] as String?,
       systemPrompt: body['system_prompt'] as String?,
+      provider: body['provider'] as String?,
     );
     return jsonResponse(session.toJson());
   } catch (e) {

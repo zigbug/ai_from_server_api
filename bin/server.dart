@@ -10,6 +10,7 @@ import 'package:ai_from_server_api/src/models/model_catalog.dart';
 import 'package:ai_from_server_api/src/providers/groq_provider.dart';
 import 'package:ai_from_server_api/src/providers/huggingface_provider.dart';
 import 'package:ai_from_server_api/src/providers/openrouter_provider.dart';
+import 'package:ai_from_server_api/src/providers/pollinations_provider.dart';
 import 'package:ai_from_server_api/src/service/chat_service.dart';
 import 'package:ai_from_server_api/src/store/session_store.dart';
 
@@ -29,6 +30,9 @@ Future<void> main(List<String> args) async {
   // Провайдер Groq (OpenAI-совместимый, текстовые модели).
   final groq = GroqProvider(config.groqApiKey);
 
+  // Провайдер Pollinations (генерация картинок, бесплатно, без ключа).
+  final pollinations = PollinationsImageProvider();
+
   // Каталог HF-моделей (динамический, с кэшем).
   final catalog = ModelCatalog();
 
@@ -38,6 +42,7 @@ Future<void> main(List<String> args) async {
     huggingFace: huggingFace,
     openRouter: openRouter,
     groq: groq,
+    pollinations: pollinations,
     catalog: catalog,
   );
 
