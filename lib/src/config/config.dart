@@ -6,6 +6,7 @@ class Config {
     required this.port,
     required this.hfToken,
     this.openRouterApiKey,
+    this.groqApiKey,
     required this.dbPath,
     required this.contextWindow,
     required this.summaryThreshold,
@@ -18,6 +19,7 @@ class Config {
   final int port;
   final String? hfToken;
   final String? openRouterApiKey;
+  final String? groqApiKey;
   final String dbPath;
   final int contextWindow;
   final int summaryThreshold;
@@ -37,6 +39,7 @@ class Config {
       port: int.parse(Platform.environment['PORT'] ?? '8080'),
       hfToken: Platform.environment['HF_TOKEN'],
       openRouterApiKey: Platform.environment['OPENROUTER_API_KEY'],
+      groqApiKey: Platform.environment['GROQ_API_KEY'],
       dbPath: Platform.environment['DB_PATH'] ?? 'data/ai_server.db',
       contextWindow: int.parse(
         Platform.environment['CONTEXT_WINDOW'] ?? '$defaultContextWindow',

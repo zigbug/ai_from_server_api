@@ -58,10 +58,11 @@ void main() {
     expect((body['text'] as List).isNotEmpty, isTrue);
     expect((body['image'] as List).isNotEmpty, isTrue);
     expect((body['edit'] as List).isNotEmpty, isTrue);
-    // Каждая модель имеет флаг `free`.
+    // Каждая модель имеет `free` и данные провайдера.
     final firstText = (body['text'] as List).first as Map;
     expect(firstText['free'], isA<bool>());
-    expect(firstText['provider'], 'huggingface');
+    expect(firstText['provider'], isA<String>());
+    expect((firstText['provider'] as String).isNotEmpty, isTrue);
   });
 
   test('Image edit validation', () async {

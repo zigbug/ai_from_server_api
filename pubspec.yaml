@@ -1,6 +1,6 @@
 name: ai_from_server_api
 description: A server app using the shelf package and Docker. Backend for AI chat/image generation serving Flutter apps.
-version: 1.1.0
+version: 1.1.1
 # repository: https://github.com/my_org/my_repo
 
 environment:

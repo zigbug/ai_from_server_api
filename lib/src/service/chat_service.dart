@@ -3,6 +3,7 @@ import 'dart:typed_data';
 import '../config/config.dart';
 import '../models.dart';
 import '../models/model_catalog.dart';
+import '../providers/groq_provider.dart';
 import '../providers/huggingface_provider.dart';
 import '../providers/openrouter_provider.dart';
 import '../providers/provider.dart';
@@ -10,13 +11,15 @@ import '../store/session_store.dart';
 
 /// Сервис, координирующий работу с сессиями, контекстом и провайдерами.
 /// Модели с provider `huggingface` идут через Hugging Face Inference API,
-/// остальные — через OpenRouter (включая free-роутер `openrouter/free`).
+/// с provider `groq` — через Groq, остальные — через OpenRouter
+/// (включая free-роутер `openrouter/free`).
 class ChatService {
   ChatService({
     required this.store,
     required this.config,
     required this.huggingFace,
     required this.openRouter,
+    required this.groq,
     required this.catalog,
   });
 
@@ -24,6 +27,7 @@ class ChatService {
   final Config config;
   final HuggingFaceProvider huggingFace;
   final OpenRouterProvider openRouter;
+  final GroqProvider groq;
   final ModelCatalog catalog;
 
   /// Создать сессию (проверяет, что модель не image/edit).
@@ -121,14 +125,34 @@ class ChatService {
     store.trimHistory(sessionId, keepLast: config.contextWindow);
   }
 
-  /// Выбрать провайдера по модели: динамические/статичные HF-модели идут
-  /// в Hugging Face, всё остальное (включая `openrouter/free`) — в OpenRouter.
+  /// Выбрать провайдера по модели: `huggingface` — Hugging Face,
+  /// `groq` — Groq, всё остальное (включая `openrouter/free`) — OpenRouter.
+  /// Смотрит в объединённый список, чтобы модели Groq (в т.ч. `openai/gpt-oss-*`,
+  /// дублирующиеся на HF Hub) гарантированно шли в Groq.
   Future<LLMProvider> _providerForModel(String modelId) async {
-    final info = await findTextModel(modelId);
-    if (info != null && info.provider == 'huggingface') {
-      return huggingFace;
+    final models = await textModels();
+    for (final m in models) {
+      if (m.id == modelId) {
+        switch (m.provider) {
+          case 'huggingface':
+            return huggingFace;
+          case 'groq':
+            return groq;
+          default:
+            return openRouter;
+        }
+      }
     }
     return openRouter;
+  }
+
+  static String _prettyModelName(String id) {
+    final last = id.split('/').last;
+    final cleaned = last
+        .split('-')
+        .map((p) => p.isEmpty ? p : '${p[0].toUpperCase()}${p.substring(1)}')
+        .join(' ');
+    return cleaned.isEmpty ? id : cleaned;
   }
 
   String _buildSystemPrompt(String summary, String sessionPrompt) {
@@ -187,16 +211,48 @@ class ChatService {
   }
 
   /// Объединённый список текстовых моделей: статический fallback +
-  /// динамические HF-модели из каталога.
+  /// динамические HF-модели из каталога + динамические модели Groq.
+  /// Groq добавляется последним, чтобы модели с дублирующимися ID
+  /// (например, `openai/gpt-oss-20b` на HF Hub и Groq) гарантированно
+  /// отправлялись в Groq.
   Future<List<ModelInfo>> textModels() async {
-    final hf = await catalog.modelsOfKind(ModelKind.text);
-    final byId = <String, ModelInfo>{
-      for (final m in availableModels.where((m) => m.kind == ModelKind.text))
-        m.id: m,
-    };
-    for (final m in hf) {
+    final byId = <String, ModelInfo>{};
+
+    // Статические текстовые модели (HF и OpenRouter).
+    for (final m in availableModels.where((m) => m.kind == ModelKind.text)) {
+      if (m.provider == 'groq') {
+        // Groq-модели добавляются ниже (после HF), когда есть ключ.
+        continue;
+      }
       byId[m.id] = m;
     }
+
+    // Динамические HF-модели из каталога (Hub + кэш).
+    for (final m in await catalog.modelsOfKind(ModelKind.text)) {
+      byId[m.id] = m;
+    }
+
+    // Статические + динамические Groq-модели (только при наличии ключа).
+    final groqKey = config.groqApiKey;
+    if (groqKey != null && groqKey.isNotEmpty) {
+      for (final m in availableModels.where(
+        (m) => m.kind == ModelKind.text && m.provider == 'groq',
+      )) {
+        byId[m.id] = m;
+      }
+      for (final id in await groq.listModels()) {
+        if (!byId.containsKey(id)) {
+          byId[id] = ModelInfo(
+            id: id,
+            name: _prettyModelName(id),
+            kind: ModelKind.text,
+            provider: 'groq',
+            free: true,
+          );
+        }
+      }
+    }
+
     return byId.values.toList();
   }
 

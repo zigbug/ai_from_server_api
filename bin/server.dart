@@ -7,6 +7,7 @@ import 'package:shelf/shelf_io.dart';
 import 'package:ai_from_server_api/src/config/config.dart';
 import 'package:ai_from_server_api/src/http/routes.dart';
 import 'package:ai_from_server_api/src/models/model_catalog.dart';
+import 'package:ai_from_server_api/src/providers/groq_provider.dart';
 import 'package:ai_from_server_api/src/providers/huggingface_provider.dart';
 import 'package:ai_from_server_api/src/providers/openrouter_provider.dart';
 import 'package:ai_from_server_api/src/service/chat_service.dart';
@@ -25,6 +26,9 @@ Future<void> main(List<String> args) async {
   // Провайдер OpenRouter (free-роутер `openrouter/free` без баланса).
   final openRouter = OpenRouterProvider(config.openRouterApiKey);
 
+  // Провайдер Groq (OpenAI-совместимый, текстовые модели).
+  final groq = GroqProvider(config.groqApiKey);
+
   // Каталог HF-моделей (динамический, с кэшем).
   final catalog = ModelCatalog();
 
@@ -33,6 +37,7 @@ Future<void> main(List<String> args) async {
     config: config,
     huggingFace: huggingFace,
     openRouter: openRouter,
+    groq: groq,
     catalog: catalog,
   );
 

@@ -1,3 +1,16 @@
+## 2.1.0
+
+- **Groq для текстовых моделей**: добавлен `GroqProvider`
+  (OpenAI-совместимый `api.groq.com/openai/v1`). Конфиг `GROQ_API_KEY`:
+  если ключ не задан — Groq-модели скрываются, поведение не меняется.
+- **Статический каталог Groq**: `openai/gpt-oss-20b`, `openai/gpt-oss-120b`,
+  `qwen/qwen3-32b`, `groq/compound`, `groq/compound-mini` (провайдер `groq`).
+  При наличии ключа список дополняется динамически списком моделей аккаунта.
+- **Маршрутизация по провайдеру**: модель с `provider=groq` уходит в Groq,
+  `huggingface` — в Hugging Face, остальное (включая `openrouter/free`) —
+  в OpenRouter. Модели с дублирующимися ID (например, `openai/gpt-oss-20b`
+  на HF Hub и Groq) гарантированно отправляются в Groq.
+
 ## 2.0.1
 
 - **Фикс Inference API**: Hugging Face отключил старый хост

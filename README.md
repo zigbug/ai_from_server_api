@@ -1,14 +1,15 @@
 # AI Server API
 
-Backend на Dart (shelf) для Flutter-приложений. Работает целиком через
-**Hugging Face Inference API** (без OpenRouter): принимает промт из приложения
-и возвращает текстовый ответ или сгенерированное/отредактированное изображение.
+Backend на Dart (shelf) для Flutter-приложений. Принимает промт из приложения
+и возвращает текстовый ответ (Groq / Hugging Face) или сгенерированное/
+отредактированное изображение (Hugging Face).
 
 ## Возможности
 
-- **Текстовые модели** — Hugging Face Inference API (text-generation).
-  Список текстовых моделей подтягивается с Hugging Face Hub автоматически
-  (топ по загрузкам, кэш на час, fallback при недоступности Hub)
+- **Текстовые модели** — Groq (OpenAI-совместимый API) + Hugging Face
+  Inference API (text-generation). Список текстовых моделей подтягивается
+  с Groq и Hugging Face Hub автоматически (топ по загрузкам, кэш на час,
+  fallback при недоступности Hub)
 - **Генерация изображений** — Stable Diffusion / FLUX через Hugging Face
 - **Сессии диалогов** — с системным промтом (роли/игры) и историей на SQLite
 - **Умный контекст** — скользящее окно (по умолчанию 20 сообщений) +
@@ -31,6 +32,8 @@ dart run bin/server.dart
 | `PORT` | Порт сервера | `8080` |
 | `DB_PATH` | Путь к файлу SQLite | `data/ai_server.db` |
 | `HF_TOKEN` | Токен Hugging Face | — |
+| `GROQ_API_KEY` | Ключ Groq для текстовых моделей (пусто — Groq скрыт) | — |
+| `OPENROUTER_API_KEY` | Ключ OpenRouter (free-роутер, необязателен) | — |
 | `CONTEXT_WINDOW` | Окно сообщений, передаваемых модели | `20` |
 | `SUMMARY_THRESHOLD` | Порог сообщений для резюмирования | `40` |
 | `IMAGE_MODEL` | Модель изображений по умолчанию | `stabilityai/stable-diffusion-xl-base-1.0` |

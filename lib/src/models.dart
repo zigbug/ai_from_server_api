@@ -111,6 +111,42 @@ class Session {
 /// Используется как запасной вариант при недоступности HF Hub,
 /// а также для валидации ID моделей.
 final List<ModelInfo> availableModels = [
+  // --- Текстовые модели (Groq, OpenAI-совместимый API) ---
+  ModelInfo(
+    id: 'openai/gpt-oss-20b',
+    name: 'GPT OSS 20B',
+    kind: ModelKind.text,
+    provider: 'groq',
+    free: true,
+  ),
+  ModelInfo(
+    id: 'openai/gpt-oss-120b',
+    name: 'GPT OSS 120B',
+    kind: ModelKind.text,
+    provider: 'groq',
+    free: true,
+  ),
+  ModelInfo(
+    id: 'qwen/qwen3-32b',
+    name: 'Qwen3 32B',
+    kind: ModelKind.text,
+    provider: 'groq',
+    free: true,
+  ),
+  ModelInfo(
+    id: 'groq/compound',
+    name: 'Groq Compound',
+    kind: ModelKind.text,
+    provider: 'groq',
+    free: true,
+  ),
+  ModelInfo(
+    id: 'groq/compound-mini',
+    name: 'Groq Compound Mini',
+    kind: ModelKind.text,
+    provider: 'groq',
+    free: true,
+  ),
   // --- Текстовые модели (OpenRouter free, без баланса) ---
   ModelInfo(
     id: 'openrouter/free',
