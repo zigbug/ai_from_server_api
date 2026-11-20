@@ -14,6 +14,33 @@ import 'package:ai_from_server_api/src/providers/pollinations_provider.dart';
 import 'package:ai_from_server_api/src/service/chat_service.dart';
 import 'package:ai_from_server_api/src/store/session_store.dart';
 
+Middleware _corsMiddleware() {
+  final allowedExact = <String>{'https://905911.ru'};
+  return (Handler innerHandler) {
+    return (Request request) async {
+      final origin = request.headers['origin'];
+      final isAllowed = origin != null &&
+          (allowedExact.contains(origin) ||
+              origin.startsWith('http://localhost:') ||
+              origin.startsWith('http://127.0.0.1:'));
+      if (request.method == 'OPTIONS') {
+        final headers = <String, String>{
+          'Access-Control-Allow-Methods': 'GET, POST, PUT, PATCH, DELETE, OPTIONS',
+          'Access-Control-Allow-Headers': 'Content-Type, Authorization',
+          'Access-Control-Max-Age': '86400',
+        };
+        if (isAllowed) headers['Access-Control-Allow-Origin'] = origin!;
+        return Response(204, headers: headers);
+      }
+      final response = await innerHandler(request);
+      if (!isAllowed) return response;
+      final headers = Map<String, Object>.from(response.headers);
+      headers['Access-Control-Allow-Origin'] = origin!;
+      return response.change(headers: headers);
+    };
+  };
+}
+
 Future<void> main(List<String> args) async {
   final config = Config.fromEnv();
   _initLogging();
@@ -49,6 +76,7 @@ Future<void> main(List<String> args) async {
   final router = buildRouter(service);
 
   final pipeline = Pipeline()
+      .addMiddleware(_corsMiddleware())
       .addMiddleware(logRequests())
       .addHandler(router.call);
 
@@ -56,10 +84,9 @@ Future<void> main(List<String> args) async {
   final server = await serve(pipeline, ip, config.port);
   print('AI Server listening on http://${server.address.address}:${server.port}');
 }
-
 void _initLogging() {
   Logger.root.level = Level.ALL;
   Logger.root.onRecord.listen((record) {
-    stderr.writeln('${record.time.toIso8601String()} [${record.level.name}] ${record.message}');
+    stderr.writeln("${record.time.toIso8601String()} [${record.level.name}] ${record.message}");
   });
 }
